@@ -1,0 +1,370 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum ProfilEnum {
+  PRESIDENT
+  MEMBRE_GOUVERNEMENT
+  SECRETARIAT_GENERAL
+  DIRECTION_NC
+  ADMIN_OUTIL
+}
+
+// Classification politique de haut niveau, en amont de la Mesure. Liste fixe
+// définie par le gouvernement — pas de CRUD, pas de table dédiée.
+enum MesurePrioritaire {
+  MAITRISE_DEPENSES_PUBLIQUES_ET_EXEMPLARITE
+  SAUVEGARDE_REGIMES_SOCIAUX
+  REFORME_RETRAITES_SECTEUR_PRIVE
+  FISCALITE_ET_RELANCE_ECONOMIQUE
+  POUVOIR_ACHAT_ET_URGENCE_SOCIALE
+  // Catch-all pour les mesures/actions qui ne se rattachent à aucune des 5
+  // priorités gouvernementales ci-dessus.
+  NON_PRIORITAIRE
+}
+
+enum StatutMesure {
+  A_L_ETUDE
+  ACTEE
+  ABANDONNEE
+}
+
+// Horizon temporel de mise en œuvre de la mesure.
+enum PhaseMesure {
+  AN_1
+  PLUS_TARD
+}
+
+enum TypeAction {
+  JURIDIQUE
+  COMMUNICATION
+  BUDGETAIRE
+  ORGANISATIONNEL_RH
+  TECHNIQUE_SI
+  TRAVAUX_AMENAGEMENT
+}
+
+enum SensEvolution {
+  A_LA_HAUSSE
+  A_LA_BAISSE
+}
+
+enum StatutPva {
+  EN_ATTENTE_VALIDATION_SG
+  VALIDEE
+  VALIDEE_AVEC_MODIFICATION
+  REFUSEE
+}
+
+enum TypeEvenementPva {
+  SOUMISE
+  MODIFIEE_PAR_SG
+  VALIDEE
+  REFUSEE
+}
+
+// Actions couvertes par la matrice de droits configurable (page Admin >
+// Droits). Périmètre volontairement restreint à la création/modification de
+// Mesure/Action/IndicateurImpact — cf. src/server/droits/domain/ActionDroit.ts
+// pour les valeurs par défaut appliquées tant qu'aucune ligne n'existe ici.
+enum ActionDroit {
+  MESURE_CREER
+  MESURE_MODIFIER
+  MESURE_MODIFIER_STATUT
+  MESURE_MODIFIER_PHASE
+  ACTION_CREER
+  ACTION_MODIFIER
+  ACTION_SUPPRIMER
+  INDICATEUR_CREER
+}
+
+// ============================================================
+// Structuration administrative
+// ============================================================
+
+model Secteur {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                 String    @unique
+  nom                  String
+  accordGouvernance    Boolean   @default(false) @map("accord_gouvernance")
+  membreGouvernementId String?   @map("membre_gouvernement_id") @db.Uuid
+  membreGouvernement   Utilisateur? @relation("secteurMembreGouvernement", fields: [membreGouvernementId], references: [id])
+  mesures              Mesure[]
+  mesuresCoPortees     MesureCoPorteur[]
+  directions           DirectionSecteur[]
+  habilitations        HabilitationSecteur[]
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+  auteurCreationId     String    @map("auteur_creation_id") @db.Uuid
+  auteurCreation       Utilisateur @relation("secteurAuteurCreation", fields: [auteurCreationId], references: [id])
+  auteurModificationId String?   @map("auteur_modification_id") @db.Uuid
+  auteurModification   Utilisateur? @relation("secteurAuteurModification", fields: [auteurModificationId], references: [id])
+
+  @@map("secteur")
+}
+
+model Direction {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                 String    @unique
+  nom                  String
+  secteurs             DirectionSecteur[]
+  utilisateurs         Utilisateur[]
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+  auteurCreationId     String    @map("auteur_creation_id") @db.Uuid
+  auteurCreation       Utilisateur @relation("directionAuteurCreation", fields: [auteurCreationId], references: [id])
+  auteurModificationId String?   @map("auteur_modification_id") @db.Uuid
+  auteurModification   Utilisateur? @relation("directionAuteurModification", fields: [auteurModificationId], references: [id])
+
+  @@map("direction")
+}
+
+// Jointure explicite (pas de m:n implicite) pour porter des champs d'audit.
+model DirectionSecteur {
+  directionId String    @map("direction_id") @db.Uuid
+  secteurId   String    @map("secteur_id") @db.Uuid
+  direction   Direction @relation(fields: [directionId], references: [id], onDelete: Cascade)
+  secteur     Secteur   @relation(fields: [secteurId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@id([directionId, secteurId])
+  @@map("direction_secteur")
+}
+
+// ============================================================
+// Niveau 1 : Mesure / Action
+// ============================================================
+
+model Mesure {
+  id                      String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                    String       @unique
+  titre                   String
+  description             String?
+  secteurId               String       @map("secteur_id") @db.Uuid
+  secteur                 Secteur      @relation(fields: [secteurId], references: [id])
+  mesurePrioritaire       MesurePrioritaire @map("mesure_prioritaire")
+  statut                  StatutMesure @default(A_L_ETUDE)
+  phase                   PhaseMesure  @default(AN_1)
+  datePrevisionnelleDebut DateTime?    @map("date_previsionnelle_debut") @db.Date
+  datePrevisionnelleFin   DateTime?    @map("date_previsionnelle_fin") @db.Date
+  dateActee               DateTime?    @map("date_actee") @db.Date
+  dateAchevement          DateTime?    @map("date_achevement") @db.Date
+  // Moyenne des Action.tauxAvancement liées, recalculée transactionnellement
+  // à chaque écriture d'avancement d'action (cf. module `mesures`).
+  meteoAvancement         Float?       @map("meteo_avancement")
+  dateCalculMeteo         DateTime?    @map("date_calcul_meteo")
+  actions                 Action[]
+  indicateurs             IndicateurImpact[]
+  coPorteurs              MesureCoPorteur[]
+  createdAt               DateTime     @default(now()) @map("created_at")
+  updatedAt               DateTime     @updatedAt @map("updated_at")
+  deletedAt               DateTime?    @map("deleted_at")
+  auteurCreationId        String       @map("auteur_creation_id") @db.Uuid
+  auteurCreation          Utilisateur  @relation("mesureAuteurCreation", fields: [auteurCreationId], references: [id])
+  auteurModificationId    String?      @map("auteur_modification_id") @db.Uuid
+  auteurModification      Utilisateur? @relation("mesureAuteurModification", fields: [auteurModificationId], references: [id])
+
+  @@index([secteurId])
+  @@index([statut])
+  @@index([mesurePrioritaire])
+  @@map("mesure")
+}
+
+// Jointure explicite (pas de m:n implicite) pour porter des champs d'audit.
+model MesureCoPorteur {
+  mesureId  String   @map("mesure_id") @db.Uuid
+  secteurId String   @map("secteur_id") @db.Uuid
+  mesure    Mesure   @relation(fields: [mesureId], references: [id], onDelete: Cascade)
+  secteur   Secteur  @relation(fields: [secteurId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([mesureId, secteurId])
+  @@map("mesure_co_porteur")
+}
+
+model Action {
+  id                    String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mesureId              String       @map("mesure_id") @db.Uuid
+  mesure                Mesure       @relation(fields: [mesureId], references: [id], onDelete: Cascade)
+  titre                 String
+  type                  TypeAction
+  tauxAvancement        Float        @default(0) @map("taux_avancement")
+  dateMajTauxAvancement DateTime?    @map("date_maj_taux_avancement")
+  bloquee               Boolean      @default(false)
+  raisonBlocage         String?      @map("raison_blocage")
+  precisionArbitrage    String?      @map("precision_arbitrage")
+  dateEcheance          DateTime?    @map("date_echeance") @db.Date
+  datePrevisionnelleDebut DateTime?  @map("date_previsionnelle_debut") @db.Date
+  datePrevisionnelleFin   DateTime?  @map("date_previsionnelle_fin") @db.Date
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+  deletedAt             DateTime?    @map("deleted_at")
+  auteurCreationId      String       @map("auteur_creation_id") @db.Uuid
+  auteurCreation        Utilisateur  @relation("actionAuteurCreation", fields: [auteurCreationId], references: [id])
+  auteurModificationId  String?      @map("auteur_modification_id") @db.Uuid
+  auteurModification    Utilisateur? @relation("actionAuteurModification", fields: [auteurModificationId], references: [id])
+
+  @@index([mesureId])
+  @@map("action")
+}
+
+// ============================================================
+// Niveau 2 : Indicateur d'impact
+// ============================================================
+
+model IndicateurImpact {
+  id                   String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mesureId             String       @map("mesure_id") @db.Uuid
+  mesure               Mesure       @relation(fields: [mesureId], references: [id], onDelete: Cascade)
+  nom                  String
+  unite                String?
+  sensEvolution        SensEvolution @map("sens_evolution")
+  valeurInitiale       Float        @map("valeur_initiale")
+  valeurCible          Float        @map("valeur_cible")
+  // Dénormalisé : dernière valeur VALIDEE / VALIDEE_AVEC_MODIFICATION, mise à
+  // jour transactionnellement par le module `propositionValeurAvancement`.
+  valeurActuelle       Float?       @map("valeur_actuelle")
+  dateValeurActuelle   DateTime?    @map("date_valeur_actuelle") @db.Date
+  tauxRealisation      Float?       @map("taux_realisation")
+  valeurs              PvaValeurTrimestrielle[]
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+  deletedAt            DateTime?    @map("deleted_at")
+  auteurCreationId     String       @map("auteur_creation_id") @db.Uuid
+  auteurCreation       Utilisateur  @relation("indicateurAuteurCreation", fields: [auteurCreationId], references: [id])
+  auteurModificationId String?      @map("auteur_modification_id") @db.Uuid
+  auteurModification   Utilisateur? @relation("indicateurAuteurModification", fields: [auteurModificationId], references: [id])
+
+  @@index([mesureId])
+  @@map("indicateur_impact")
+}
+
+// ============================================================
+// Workflow PVA — colonne statut simple (pas d'event-sourcing, cf. plan §3/§6)
+// ============================================================
+
+model PvaValeurTrimestrielle {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  indicateurId   String           @map("indicateur_id") @db.Uuid
+  indicateur     IndicateurImpact @relation(fields: [indicateurId], references: [id], onDelete: Cascade)
+  annee          Int
+  trimestre      Int
+  valeurProposee Float            @map("valeur_proposee")
+  // Renseignée sur VALIDEE / VALIDEE_AVEC_MODIFICATION (peut différer de
+  // valeurProposee dans le cas d'une modification par le SG).
+  valeurValidee  Float?           @map("valeur_validee")
+  statut         StatutPva        @default(EN_ATTENTE_VALIDATION_SG)
+  // Obligatoire si statut = REFUSEE (contrainte applicative, cf. usecase +
+  // validation Zod — pas une contrainte DB pour rester simple).
+  motifRefus     String?          @map("motif_refus")
+  commentaireSg  String?          @map("commentaire_sg")
+  soumisParId    String           @map("soumis_par_id") @db.Uuid
+  soumisPar      Utilisateur      @relation("pvaSoumisPar", fields: [soumisParId], references: [id])
+  dateSoumission DateTime         @default(now()) @map("date_soumission")
+  traiteParId    String?          @map("traite_par_id") @db.Uuid
+  traitePar      Utilisateur?     @relation("pvaTraitePar", fields: [traiteParId], references: [id])
+  dateTraitement DateTime?        @map("date_traitement")
+  historique     PvaEvenement[]
+
+  @@unique([indicateurId, annee, trimestre])
+  @@index([statut])
+  @@map("pva_valeur_trimestrielle")
+}
+
+// Trace d'audit append-only du workflow PVA. N'est PAS la source de vérité du
+// statut (qui vit sur PvaValeurTrimestrielle.statut) — sert uniquement à
+// l'historique affiché à l'utilisateur.
+model PvaEvenement {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pvaId       String                 @map("pva_id") @db.Uuid
+  pva         PvaValeurTrimestrielle @relation(fields: [pvaId], references: [id], onDelete: Cascade)
+  type        TypeEvenementPva
+  valeur      Float?
+  commentaire String?
+  auteurId    String                 @map("auteur_id") @db.Uuid
+  auteur      Utilisateur            @relation(fields: [auteurId], references: [id])
+  createdAt   DateTime               @default(now()) @map("created_at")
+
+  @@index([pvaId])
+  @@map("pva_evenement")
+}
+
+// ============================================================
+// Utilisateurs & permissions
+// ============================================================
+
+model Utilisateur {
+  id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String     @unique
+  nom                   String
+  prenom                String
+  profil                ProfilEnum
+  // Réservé à MEMBRE_GOUVERNEMENT : voit tous les Secteurs plutôt que
+  // uniquement ceux listés dans habilitationsSecteur (cf. plan §2b).
+  transparenceGlobale   Boolean    @default(false) @map("transparence_globale")
+  // Rattachement organisationnel informatif (DIRECTION_NC) — n'intervient pas
+  // dans le calcul des habilitations, qui reposent sur HabilitationSecteur.
+  directionId           String?    @map("direction_id") @db.Uuid
+  direction             Direction? @relation(fields: [directionId], references: [id])
+  habilitationsSecteur  HabilitationSecteur[]
+  secteursPourMembre    Secteur[]  @relation("secteurMembreGouvernement")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime?  @map("deleted_at")
+  dateDerniereConnexion DateTime?  @map("date_derniere_connexion")
+
+  // Relations inverses des champs d'audit
+  secteursCrees        Secteur[]          @relation("secteurAuteurCreation")
+  secteursModifies     Secteur[]          @relation("secteurAuteurModification")
+  directionsCreees     Direction[]        @relation("directionAuteurCreation")
+  directionsModifiees  Direction[]        @relation("directionAuteurModification")
+  mesuresCreees        Mesure[]           @relation("mesureAuteurCreation")
+  mesuresModifiees     Mesure[]           @relation("mesureAuteurModification")
+  actionsCreees        Action[]           @relation("actionAuteurCreation")
+  actionsModifiees     Action[]           @relation("actionAuteurModification")
+  indicateursCrees     IndicateurImpact[] @relation("indicateurAuteurCreation")
+  indicateursModifies  IndicateurImpact[] @relation("indicateurAuteurModification")
+  pvaSoumis            PvaValeurTrimestrielle[] @relation("pvaSoumisPar")
+  pvaTraites           PvaValeurTrimestrielle[] @relation("pvaTraitePar")
+  pvaEvenements        PvaEvenement[]
+
+  @@map("utilisateur")
+}
+
+// Portée d'habilitation : quel(s) Secteur(s) un utilisateur (DIRECTION_NC, ou
+// MEMBRE_GOUVERNEMENT sans transparenceGlobale) peut lire/modifier.
+model HabilitationSecteur {
+  utilisateurId String      @map("utilisateur_id") @db.Uuid
+  secteurId     String      @map("secteur_id") @db.Uuid
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  secteur       Secteur     @relation(fields: [secteurId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@id([utilisateurId, secteurId])
+  @@map("habilitation_secteur")
+}
+
+// Surcharge d'une case de la matrice de droits pour un (action, profil)
+// donné. L'absence de ligne = valeur par défaut (cf. DROITS_PAR_DEFAUT côté
+// application) : pas besoin de pré-remplir cette table à la migration.
+model Droit {
+  id       String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action   ActionDroit
+  profil   ProfilEnum
+  autorise Boolean     @default(false)
+
+  @@unique([action, profil])
+  @@map("droit")
+}

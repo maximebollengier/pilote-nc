@@ -1,0 +1,13 @@
+**/node_modules
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+.git
+.claude
+.github
+docs
+**/.env
+**/.env.*
+!**/.env.example
+**/test-results
+**/playwright-report

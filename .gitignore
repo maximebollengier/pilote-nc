@@ -1,0 +1,52 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# misc
+.DS_Store
+*.pem
+*.crt
+*.der
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local env files
+.env
+.env*.local
+.env.prod
+
+# IDE
+.idea/
+.vscode/
+.cursor/
+.claude/
+!.claude/skills/feature/SKILL.md
+
+# misc
+qodana.yaml
+*.pgsql
+*.tsbuildinfo
+.devtools
+
+# build artifacts
+.next
+/.slugignore
+/start.sh
+/cron.json
+
+# uploads
+/uploads
+
+# superpowers visual companion (mockups)
+.superpowers/
+
+# sortie de la campagne de deps (rapport de travail, jamais commité)
+.deps-campagne/
+
+# pilote-nc : secrets docker-compose
+apps/pilote-nc/.env.docker

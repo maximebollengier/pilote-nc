@@ -1,0 +1,153 @@
+name: "Déploiement pilote-nc (Scaleway)"
+
+# Construit l'image, la pousse dans le Container Registry Scaleway, applique
+# les migrations Prisma (Serverless Job) puis redéploie le Serverless Container.
+# Configuration à faire une fois : voir apps/pilote-nc/DEPLOIEMENT.md
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/pilote-nc/**"
+      - "!apps/pilote-nc/keycloak/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy-pilote-nc-scaleway.yml"
+  workflow_dispatch:
+
+# Un seul déploiement à la fois ; un nouveau push attend la fin du précédent
+# (on n'annule pas : une migration en cours ne doit jamais être interrompue).
+concurrency:
+  group: deploy-pilote-nc-scaleway
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 24.9.0
+  SCW_DEFAULT_REGION: fr-par
+  REGISTRY: rg.fr-par.scw.cloud
+  IMAGE_APP: rg.fr-par.scw.cloud/${{ vars.SCW_REGISTRY_NAMESPACE }}/pilote-nc
+  IMAGE_MIGRATE: rg.fr-par.scw.cloud/${{ vars.SCW_REGISTRY_NAMESPACE }}/pilote-nc-migrate
+
+jobs:
+  test:
+    name: "Typage et tests unitaires"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node and packages
+        uses: ./.github/actions/setupNodeAndPackages
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "Génération du client Prisma"
+        run: pnpm --filter @pilote/nc exec prisma generate
+
+      - name: "Vérification des types"
+        run: pnpm --filter @pilote/nc exec tsc --noEmit
+
+      - name: "Tests unitaires"
+        run: pnpm --filter @pilote/nc test
+
+  deploy:
+    name: "Build, migration, déploiement"
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: "Connexion au Container Registry Scaleway"
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: nologin
+          password: ${{ secrets.SCW_SECRET_KEY }}
+
+      - name: "Build et push de l'image applicative"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/pilote-nc/Dockerfile
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.IMAGE_APP }}:${{ github.sha }}
+            ${{ env.IMAGE_APP }}:latest
+          cache-from: type=gha,scope=pilote-nc
+          cache-to: type=gha,scope=pilote-nc,mode=max
+
+      - name: "Build et push de l'image de migration"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/pilote-nc/Dockerfile
+          target: migrate
+          push: true
+          tags: |
+            ${{ env.IMAGE_MIGRATE }}:${{ github.sha }}
+            ${{ env.IMAGE_MIGRATE }}:latest
+          cache-from: type=gha,scope=pilote-nc
+          cache-to: type=gha,scope=pilote-nc,mode=max
+
+      - name: "Installation de la CLI Scaleway"
+        uses: scaleway/action-scw@v0
+        with:
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          default-project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          default-organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+          export-config: true
+
+      # Premier déploiement : tant que la base et le conteneur n'existent pas
+      # chez Scaleway (variables vides), on se contente de pousser les images.
+      #
+      # La base est fermée à Internet : l'application s'y connecte par le réseau
+      # privé, et seul ce runner y accède, quelques secondes, via une règle ACL
+      # temporaire sur son IP publique.
+      - name: "Migrations Prisma (accès temporaire à la base)"
+        if: ${{ vars.SCW_DB_INSTANCE_ID != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_MIGRATION }}
+        run: |
+          set -euo pipefail
+          RUNNER_IP=$(curl -fsS https://api.ipify.org)
+          echo "RUNNER_IP=${RUNNER_IP}" >> "$GITHUB_ENV"
+          scw rdb acl add "${RUNNER_IP}/32" \
+            instance-id="${{ vars.SCW_DB_INSTANCE_ID }}" \
+            description="ci-migration ${{ github.run_id }}" --wait
+          docker run --rm -e DATABASE_URL "${IMAGE_MIGRATE}:${{ github.sha }}"
+
+      - name: "Fermeture de l'accès temporaire à la base"
+        if: ${{ always() && vars.SCW_DB_INSTANCE_ID != '' && env.RUNNER_IP != '' }}
+        run: |
+          scw rdb acl delete "${RUNNER_IP}/32" \
+            instance-id="${{ vars.SCW_DB_INSTANCE_ID }}" --wait
+
+      - name: "Déploiement du Serverless Container"
+        if: ${{ vars.SCW_CONTAINER_ID != '' }}
+        run: |
+          set -euo pipefail
+          scw container container update "${{ vars.SCW_CONTAINER_ID }}" \
+            image="${IMAGE_APP}:${{ github.sha }}"
+          # `update image=…` lance déjà un nouveau déploiement : on attend son issue
+          # (pause : le statut peut encore afficher l'ancienne révision « ready »).
+          sleep 20
+          for _ in $(seq 1 60); do
+            JSON=$(scw container container get "${{ vars.SCW_CONTAINER_ID }}" -o json)
+            STATE=$(echo "${JSON}" | jq -r '.status')
+            echo "état : ${STATE}"
+            case "${STATE}" in
+              ready) exit 0 ;;
+              error) echo "${JSON}" | jq -r '.error_message' >&2; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Délai dépassé pendant le déploiement" >&2
+          exit 1

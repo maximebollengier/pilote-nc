@@ -1,0 +1,50 @@
+{
+  "name": "pilote-nc-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": "24.9.0"
+  },
+  "scripts": {
+    "dev": "pnpm -F @pilote/nc dev",
+    "build": "pnpm -F @pilote/nc build",
+    "lint": "pnpm -F @pilote/nc lint",
+    "test": "pnpm -F @pilote/nc test",
+    "database:init": "pnpm -F @pilote/nc database:init"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "@tailwindcss/oxide",
+      "@tree-sitter-grammars/tree-sitter-yaml",
+      "esbuild",
+      "prisma",
+      "sharp",
+      "tree-sitter",
+      "tree-sitter-json",
+      "unrs-resolver"
+    ],
+    "overrides": {
+      "@hono/node-server": ">=1.19.15 <2",
+      "@xmldom/xmldom": ">=0.9.10 <0.10",
+      "hono": ">=4.12.34 <5",
+      "postcss": ">=8.5.23 <9",
+      "sharp": ">=0.35.0 <0.36",
+      "brace-expansion@<2": ">=1.1.18 <2",
+      "brace-expansion@>=2 <3": ">=2.1.2 <3",
+      "brace-expansion@>=5 <6": ">=5.0.9 <6",
+      "undici@>=7 <8": ">=7.29.0 <8",
+      "immutable@>=4 <5": ">=4.3.9 <5",
+      "js-yaml@<4": ">=3.15.1 <4",
+      "js-yaml@>=4 <5": ">=4.3.1 <5",
+      "tar@>=7 <8": ">=7.5.21 <8",
+      "fast-uri@>=3 <4": ">=3.1.4 <4",
+      "eslint-plugin-sonarjs>typescript": "5.9.3",
+      "deepmerge-ts": ">=8.0.0 <9"
+    }
+  },
+  "devDependencies": {
+    "semver": "^7.8.5"
+  }
+}

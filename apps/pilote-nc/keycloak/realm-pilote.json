@@ -1,0 +1,28 @@
+{
+  "realm": "pilote",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "clients": [
+    {
+      "clientId": "pilote-nc",
+      "name": "PILOTE Nouvelle-Calédonie",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${KEYCLOAK_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["${APP_URL}/api/auth/callback/keycloak"],
+      "webOrigins": ["${APP_URL}"],
+      "attributes": {
+        "post.logout.redirect.uris": "${APP_URL}/*"
+      }
+    }
+  ]
+}
