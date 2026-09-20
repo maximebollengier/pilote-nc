@@ -8,6 +8,7 @@ import { VueListe } from "@/client/components/mesures/VueListe";
 import { VueTableau } from "@/client/components/mesures/VueTableau";
 import { VueKanban } from "@/client/components/mesures/VueKanban";
 import { VueCalendrierActions } from "@/client/components/actions/VueCalendrierActions";
+import { BlocEcheancesActions } from "@/client/components/actions/BlocEcheancesActions";
 import { Jauge } from "@/client/components/Jauge";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -216,7 +217,7 @@ const PageAccueil = () => {
         ) : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="flex flex-col items-center gap-3 rounded-lg border border-neutral-200 bg-white p-6">
           <h2 className="text-xl font-semibold text-neutral-800">
             Avancement moyen des {nombreActionsAffichees} action
@@ -240,6 +241,7 @@ const PageAccueil = () => {
             {nombreActionsBloquees}
           </span>
         </div>
+        <BlocEcheancesActions actions={actionsCalendrier ?? []} />
       </div>
 
       {isLoading ? <p className="mt-6 text-neutral-500">Chargement…</p> : null}
