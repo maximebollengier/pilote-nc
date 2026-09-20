@@ -194,6 +194,19 @@ model MesureCoPorteur {
   @@map("mesure_co_porteur")
 }
 
+// Origine du taux d'avancement d'une action : saisi à la main, ou calculé
+// (moyenne des tâches) à partir d'un projet OpenProject.
+enum SourceAvancementAction {
+  MANUELLE
+  OPENPROJECT
+}
+
+enum StatutSynchronisationAction {
+  JAMAIS_SYNCHRONISEE
+  SYNCHRONISEE
+  EN_ERREUR
+}
+
 model Action {
   id                    String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   mesureId              String       @map("mesure_id") @db.Uuid
@@ -202,6 +215,15 @@ model Action {
   type                  TypeAction
   tauxAvancement        Float        @default(0) @map("taux_avancement")
   dateMajTauxAvancement DateTime?    @map("date_maj_taux_avancement")
+  // Synchronisation de l'avancement depuis OpenProject (source MANUELLE : champs inutilisés).
+  // Le rattachement vise un projet entier, ou un lot de travail parent si renseigné.
+  sourceAvancement        SourceAvancementAction      @default(MANUELLE) @map("source_avancement")
+  openprojectProjetId     String?                     @map("openproject_projet_id")
+  openprojectLotTravailId String?                     @map("openproject_lot_travail_id")
+  statutSynchronisation   StatutSynchronisationAction @default(JAMAIS_SYNCHRONISEE) @map("statut_synchronisation")
+  dateDerniereSynchronisation DateTime?               @map("date_derniere_synchronisation")
+  erreurSynchronisation   String?                     @map("erreur_synchronisation")
+  nombreTachesSynchronisees Int?                      @map("nombre_taches_synchronisees")
   bloquee               Boolean      @default(false)
   raisonBlocage         String?      @map("raison_blocage")
   precisionArbitrage    String?      @map("precision_arbitrage")
@@ -217,6 +239,7 @@ model Action {
   auteurModification    Utilisateur? @relation("actionAuteurModification", fields: [auteurModificationId], references: [id])
 
   @@index([mesureId])
+  @@index([sourceAvancement])
   @@map("action")
 }
 
