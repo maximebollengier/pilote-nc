@@ -9,6 +9,10 @@ import { VueTableau } from "@/client/components/mesures/VueTableau";
 import { VueKanban } from "@/client/components/mesures/VueKanban";
 import { VueCalendrierActions } from "@/client/components/actions/VueCalendrierActions";
 import { BlocEcheancesActions } from "@/client/components/actions/BlocEcheancesActions";
+import {
+  ModaleListeActions,
+  SelectionActions,
+} from "@/client/components/actions/ModaleListeActions";
 import { Jauge } from "@/client/components/Jauge";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -50,6 +54,8 @@ const PageAccueil = () => {
     trpc.profilUtilisateur.getUtilisateurConnecte.useQuery();
   const estPresident = utilisateur?.profil === "PRESIDENT";
   const [vue, setVue] = useState<Vue>("kanban");
+  const [selectionActions, setSelectionActions] =
+    useState<SelectionActions | null>(null);
   const [secteurId, setSecteurId] = useState("");
   const [filtreActions, setFiltreActions] = useState<FiltreActions>("toutes");
   const [filtreAccordGouvernance, setFiltreAccordGouvernance] =
@@ -237,12 +243,34 @@ const PageAccueil = () => {
             Action{nombreActionsBloquees > 1 ? "s" : ""} bloquée
             {nombreActionsBloquees > 1 ? "s" : ""}
           </h2>
-          <span className="text-6xl font-semibold text-neutral-800">
+          <button
+            type="button"
+            disabled={nombreActionsBloquees === 0}
+            onClick={() =>
+              setSelectionActions({
+                titre: `Actions bloquées (${nombreActionsBloquees})`,
+                actions: (actionsAffichees ?? []).filter(
+                  (action) => action.bloquee,
+                ),
+              })
+            }
+            className="text-6xl font-semibold text-neutral-800 enabled:cursor-pointer enabled:underline enabled:decoration-dotted enabled:underline-offset-8 enabled:hover:text-neutral-600"
+          >
             {nombreActionsBloquees}
-          </span>
+          </button>
         </div>
-        <BlocEcheancesActions actions={actionsCalendrier ?? []} />
+        <BlocEcheancesActions
+          actions={actionsCalendrier ?? []}
+          onSelectionner={(titre, actions) =>
+            setSelectionActions({ titre, actions })
+          }
+        />
       </div>
+
+      <ModaleListeActions
+        selection={selectionActions}
+        onFermer={() => setSelectionActions(null)}
+      />
 
       {isLoading ? <p className="mt-6 text-neutral-500">Chargement…</p> : null}
 

@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import { ActionCliquable } from "@/client/components/actions/ModaleListeActions";
 import {
+  calculerStatutEcheanceAction,
   compterActionsParStatutEcheance,
   StatutEcheanceAction,
 } from "@/server/actions/domain/statutEcheanceAction";
@@ -16,8 +18,10 @@ const LIGNES: { statut: StatutEcheanceAction; libelle: string; barre: string }[]
  */
 export const BlocEcheancesActions = ({
   actions,
+  onSelectionner,
 }: {
-  actions: { datePrevisionnelleFin: Date | null; tauxAvancement: number }[];
+  actions: ActionCliquable[];
+  onSelectionner: (titre: string, actions: ActionCliquable[]) => void;
 }) => {
   const compteurs = useMemo(() => compterActionsParStatutEcheance(actions), [actions]);
   const total = actions.length;
@@ -32,7 +36,20 @@ export const BlocEcheancesActions = ({
           const nombre = compteurs[statut];
           const pourcentage = total === 0 ? 0 : (nombre / total) * 100;
           return (
-            <div key={statut}>
+            <button
+              key={statut}
+              type="button"
+              disabled={nombre === 0}
+              onClick={() =>
+                onSelectionner(
+                  `${libelle} (${nombre})`,
+                  actions.filter(
+                    (action) => calculerStatutEcheanceAction(action) === statut,
+                  ),
+                )
+              }
+              className="block w-full rounded p-1 text-left enabled:cursor-pointer enabled:hover:bg-neutral-50"
+            >
               <div className="flex items-baseline justify-between text-sm">
                 <span className="text-neutral-700">{libelle}</span>
                 <span className="font-medium text-neutral-800">
@@ -52,7 +69,7 @@ export const BlocEcheancesActions = ({
                   style={{ width: `${pourcentage}%` }}
                 />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
