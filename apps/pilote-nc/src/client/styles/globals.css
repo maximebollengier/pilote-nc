@@ -18,3 +18,17 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* Tailwind 4 laisse le curseur par défaut sur les boutons : main sur un bouton
+   actif (ex. « Créer » des fenêtres d'ajout), interdit sur un bouton désactivé. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
