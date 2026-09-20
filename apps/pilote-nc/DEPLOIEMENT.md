@@ -90,6 +90,18 @@ scw rdb acl add "$(curl -s https://api.ipify.org)/32" instance-id=<ID> --wait
 scw rdb acl delete "<IP>/32" instance-id=<ID> --wait
 ```
 
+### Migrations appliquées (repères)
+
+Le dossier `src/database/prisma/migrations/` fait foi. Migration à connaître :
+
+- `20260920013343_ajoute_synchronisation_openproject_action` : prépare la
+  synchronisation de l'avancement des actions depuis OpenProject. Ajoute à la
+  table `action` la source d'avancement (`MANUELLE` par défaut, ou `OPENPROJECT`),
+  le rattachement au projet / lot de travail OpenProject et l'état de la dernière
+  synchronisation. Migration additive (colonnes avec valeur par défaut) : les
+  actions existantes restent en saisie manuelle. Rien n'est encore lu ni écrit
+  par l'application : la synchronisation reste à développer.
+
 ## 5. Connexion et comptes
 
 - L'application n'accepte que Keycloak en production : la page `/connexion`
