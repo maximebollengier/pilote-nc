@@ -1,3 +1,4 @@
+import { DefilementHorizontal } from "@/client/components/DefilementHorizontal";
 import { MesureCarteKanban } from "@/client/components/mesures/MesureCarteKanban";
 import { MesureAffichage } from "@/client/types/mesure";
 import {
@@ -15,7 +16,7 @@ export const VueKanban = ({ mesures }: { mesures: MesureAffichage[] }) => {
   );
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
+    <DefilementHorizontal className="flex gap-4 overflow-x-auto pb-2">
       {ORDRE_MESURE_PRIORITAIRE.map((valeur) => {
         const mesuresDuGroupe = mesuresParPrioritaire[valeur] ?? [];
 
@@ -39,6 +40,6 @@ export const VueKanban = ({ mesures }: { mesures: MesureAffichage[] }) => {
           </div>
         );
       })}
-    </div>
+    </DefilementHorizontal>
   );
 };

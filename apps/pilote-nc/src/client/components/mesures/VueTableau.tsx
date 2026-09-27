@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BarreAvancement } from "@/client/components/BarreAvancement";
+import { DefilementHorizontal } from "@/client/components/DefilementHorizontal";
 import { MesureAffichage } from "@/client/types/mesure";
 import {
   LIBELLES_MESURE_PRIORITAIRE,
@@ -85,7 +86,7 @@ export const VueTableau = ({ mesures }: { mesures: MesureAffichage[] }) => {
   );
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+    <DefilementHorizontal className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
       <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead className="bg-neutral-100 text-left text-neutral-600">
           <tr>
@@ -134,6 +135,6 @@ export const VueTableau = ({ mesures }: { mesures: MesureAffichage[] }) => {
           ))}
         </tbody>
       </table>
-    </div>
+    </DefilementHorizontal>
   );
 };
