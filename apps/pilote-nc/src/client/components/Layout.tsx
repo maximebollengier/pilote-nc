@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { signOut } from "next-auth/react";
 import { ReactNode } from "react";
 import { trpc } from "@/client/utils/trpc";
 import { MenuAdmin } from "@/client/components/MenuAdmin";
+import { MenuUtilisateur } from "@/client/components/MenuUtilisateur";
 
 export const Layout = ({ children }: { children: ReactNode }) => {
   const { data: utilisateur } =
@@ -49,18 +49,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
                 Validations en attente
               </Link>
             ) : null}
-            {utilisateur ? (
-              <span className="flex items-center gap-2">
-                <span>{utilisateur.email}</span>
-                <button
-                  type="button"
-                  onClick={() => signOut({ callbackUrl: "/connexion" })}
-                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-                >
-                  Se déconnecter
-                </button>
-              </span>
-            ) : null}
+            {utilisateur ? <MenuUtilisateur email={utilisateur.email} /> : null}
           </nav>
         </div>
       </header>
