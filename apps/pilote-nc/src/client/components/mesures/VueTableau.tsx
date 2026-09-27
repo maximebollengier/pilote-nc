@@ -9,12 +9,14 @@ import {
 
 type Colonne =
   | "titre"
+  | "nombreActions"
   | "mesurePrioritaire"
   | "meteoAvancement"
   | "tauxAvancementIndicateurs";
 
 const COLONNES: { cle: Colonne; libelle: string }[] = [
   { cle: "titre", libelle: "Mesure" },
+  { cle: "nombreActions", libelle: "Nombre d'actions" },
   { cle: "mesurePrioritaire", libelle: "Mesure prioritaire" },
   { cle: "meteoAvancement", libelle: "Avancement des actions" },
   { cle: "tauxAvancementIndicateurs", libelle: "Avancement des indicateurs" },
@@ -41,6 +43,8 @@ function comparerMesures(
   switch (colonne) {
     case "titre":
       return a.titre.localeCompare(b.titre) * (croissant ? 1 : -1);
+    case "nombreActions":
+      return (a.nombreActions - b.nombreActions) * (croissant ? 1 : -1);
     case "mesurePrioritaire":
       return (
         (ORDRE_MESURE_PRIORITAIRE.indexOf(a.mesurePrioritaire) -
@@ -116,6 +120,7 @@ export const VueTableau = ({ mesures }: { mesures: MesureAffichage[] }) => {
                   {mesure.titre}
                 </Link>
               </td>
+              <td className="px-4 py-2 text-neutral-600">{mesure.nombreActions}</td>
               <td className="px-4 py-2 text-neutral-600">
                 {LIBELLES_MESURE_PRIORITAIRE[mesure.mesurePrioritaire]}
               </td>

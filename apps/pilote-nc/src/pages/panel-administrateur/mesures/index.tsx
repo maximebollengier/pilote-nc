@@ -49,6 +49,7 @@ type Mesure = {
   phase: PhaseMesure;
   meteoAvancement: number | null;
   tauxAvancementIndicateurs: number | null;
+  nombreActions: number;
 };
 type Secteur = {
   id: string;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Jauge } from "@/client/components/Jauge";
+import { NombreActionsMesure } from "@/client/components/mesures/NombreActionsMesure";
 import { MesureAffichage } from "@/client/types/mesure";
 
 export const MesureCarte = ({ mesure }: { mesure: MesureAffichage }) => (
@@ -11,6 +12,7 @@ export const MesureCarte = ({ mesure }: { mesure: MesureAffichage }) => (
       <h2 className="font-medium text-neutral-800">{mesure.titre}</h2>
     </div>
     <div className="flex shrink-0 gap-6">
+      <NombreActionsMesure nombre={mesure.nombreActions} />
       <Jauge libelle="Avancement des actions" valeur={mesure.meteoAvancement} />
       <Jauge
         libelle="Avancement des indicateurs"

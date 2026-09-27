@@ -35,7 +35,7 @@ export default class PrismaMesureRepository implements MesureRepository {
       },
       include: this.inclusionCoPorteurs,
     });
-    return this.versMesure(mesure, null, 0);
+    return this.versMesure(mesure, null, 0, 0);
   }
 
   async lister(): Promise<Mesure[]> {
@@ -44,13 +44,18 @@ export default class PrismaMesureRepository implements MesureRepository {
       .mesure.findMany({
         where: { deletedAt: null },
         orderBy: { titre: "asc" },
-        include: { ...this.inclusionIndicateurs, ...this.inclusionCoPorteurs },
+        include: {
+          ...this.inclusionIndicateurs,
+          ...this.inclusionActions,
+          ...this.inclusionCoPorteurs,
+        },
       });
     return mesures.map((mesure) =>
       this.versMesure(
         mesure,
         this.extraireTauxAvancementIndicateurs(mesure),
         mesure.indicateurs.length,
+        mesure.actions.length,
       ),
     );
   }
@@ -58,13 +63,18 @@ export default class PrismaMesureRepository implements MesureRepository {
   async récupérerParId(id: string): Promise<Mesure | null> {
     const mesure = await this.dependencies.prisma.getInstance().mesure.findUnique({
       where: { id, deletedAt: null },
-      include: { ...this.inclusionIndicateurs, ...this.inclusionCoPorteurs },
+      include: {
+        ...this.inclusionIndicateurs,
+        ...this.inclusionActions,
+        ...this.inclusionCoPorteurs,
+      },
     });
     return mesure
       ? this.versMesure(
           mesure,
           this.extraireTauxAvancementIndicateurs(mesure),
           mesure.indicateurs.length,
+          mesure.actions.length,
         )
       : null;
   }
@@ -91,12 +101,17 @@ export default class PrismaMesureRepository implements MesureRepository {
         mesurePrioritaire: donnees.mesurePrioritaire,
         auteurModificationId: donnees.auteurModificationId,
       },
-      include: { ...this.inclusionIndicateurs, ...this.inclusionCoPorteurs },
+      include: {
+        ...this.inclusionIndicateurs,
+        ...this.inclusionActions,
+        ...this.inclusionCoPorteurs,
+      },
     });
     return this.versMesure(
       mesure,
       this.extraireTauxAvancementIndicateurs(mesure),
       mesure.indicateurs.length,
+      mesure.actions.length,
     );
   }
 
@@ -111,12 +126,17 @@ export default class PrismaMesureRepository implements MesureRepository {
         statut: donnees.statut,
         auteurModificationId: donnees.auteurModificationId,
       },
-      include: { ...this.inclusionIndicateurs, ...this.inclusionCoPorteurs },
+      include: {
+        ...this.inclusionIndicateurs,
+        ...this.inclusionActions,
+        ...this.inclusionCoPorteurs,
+      },
     });
     return this.versMesure(
       mesure,
       this.extraireTauxAvancementIndicateurs(mesure),
       mesure.indicateurs.length,
+      mesure.actions.length,
     );
   }
 
@@ -131,12 +151,17 @@ export default class PrismaMesureRepository implements MesureRepository {
         phase: donnees.phase,
         auteurModificationId: donnees.auteurModificationId,
       },
-      include: { ...this.inclusionIndicateurs, ...this.inclusionCoPorteurs },
+      include: {
+        ...this.inclusionIndicateurs,
+        ...this.inclusionActions,
+        ...this.inclusionCoPorteurs,
+      },
     });
     return this.versMesure(
       mesure,
       this.extraireTauxAvancementIndicateurs(mesure),
       mesure.indicateurs.length,
+      mesure.actions.length,
     );
   }
 
@@ -168,6 +193,16 @@ export default class PrismaMesureRepository implements MesureRepository {
     indicateurs: {
       where: { deletedAt: null },
       select: { tauxRealisation: true },
+    },
+  };
+
+  // Le nombre d'actions n'a pas de filtrage de visibilité propre : une action
+  // est visible dès lors que sa mesure l'est (même portée par secteur), donc
+  // ce total correspond déjà au nombre d'actions visibles par l'utilisateur.
+  private readonly inclusionActions = {
+    actions: {
+      where: { deletedAt: null },
+      select: { id: true },
     },
   };
 
@@ -205,6 +240,7 @@ export default class PrismaMesureRepository implements MesureRepository {
     },
     tauxAvancementIndicateurs: number | null,
     nombreIndicateurs: number,
+    nombreActions: number,
   ): Mesure {
     return {
       id: mesure.id,
@@ -224,6 +260,7 @@ export default class PrismaMesureRepository implements MesureRepository {
       dateCalculMeteo: mesure.dateCalculMeteo,
       tauxAvancementIndicateurs,
       nombreIndicateurs,
+      nombreActions,
     };
   }
 }

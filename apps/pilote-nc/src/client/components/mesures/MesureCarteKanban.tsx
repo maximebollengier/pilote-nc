@@ -11,6 +11,12 @@ export const MesureCarteKanban = ({ mesure }: { mesure: MesureAffichage }) => (
     <h3 className="text-sm font-medium text-neutral-800">{mesure.titre}</h3>
     <div className="mt-3 flex flex-col gap-2">
       <div>
+        <p className="text-[11px] text-neutral-500">Nombre d&apos;actions</p>
+        <p className="text-sm font-medium text-neutral-800">
+          {mesure.nombreActions}
+        </p>
+      </div>
+      <div>
         <p className="text-[11px] text-neutral-500">Avancement des actions</p>
         <BarreAvancement valeur={mesure.meteoAvancement} />
       </div>

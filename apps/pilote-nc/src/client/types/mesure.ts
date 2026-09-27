@@ -12,4 +12,5 @@ export type MesureAffichage = {
   mesurePrioritaire: MesurePrioritaire;
   meteoAvancement: number | null;
   tauxAvancementIndicateurs: number | null;
+  nombreActions: number;
 };

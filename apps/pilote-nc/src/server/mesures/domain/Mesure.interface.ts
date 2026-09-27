@@ -20,4 +20,5 @@ export default interface Mesure {
   dateCalculMeteo: Date | null;
   tauxAvancementIndicateurs: number | null;
   nombreIndicateurs: number;
+  nombreActions: number;
 }
