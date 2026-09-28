@@ -13,12 +13,17 @@ Chaque push sur `main` touchant `apps/pilote-nc/**` ou `pnpm-lock.yaml` lance
 `deploy-keycloak-scaleway.yml` fait de même pour Keycloak, uniquement si
 `apps/pilote-nc/keycloak/` change.
 
+> **Fournisseur d'identité (depuis le 28/09/2026)** : l'application
+> s'authentifie sur **Agent Connect**, le Keycloak de la DSI
+> (`https://connect.gouv.nc/v3/realms/agent-connect`), pas sur le Keycloak
+> auto-hébergé décrit ci-dessous. Voir §5 et §6.
+
 ## 1. Architecture en place
 
 | Élément | Détail |
 |---|---|
 | Application | `https://pilote.maxnc.fr` — Serverless Container `pilote-nc`, port 3000, 1 Go, 560 mvCPU, `min-scale=0` (démarrage à froid possible), `max-scale=2` |
-| Keycloak | `https://auth.maxnc.fr` — Serverless Container `keycloak`, port 8080, 2 Go, 1120 mvCPU, `min-scale=1`, `max-scale=1`, realm `pilote` |
+| Keycloak auto-hébergé | `https://auth.maxnc.fr` — Serverless Container `keycloak`, port 8080, 2 Go, 1120 mvCPU, `min-scale=1`, `max-scale=1`, realm `pilote`. **Inutilisé par l'application depuis la bascule sur Agent Connect** (§5/§6) : conservé pour l'instant, candidat à l'arrêt |
 | Base de données | Managed PostgreSQL 16, instance `pilote-nc`, type `db-dev-s`, sans haute disponibilité. Bases `pilote_nc` (utilisateur `pilote`) et `keycloak` (utilisateur `keycloak`) |
 | Réseau | Réseau privé `pilote-nc-pn` : la base (`172.16.4.2:5432`) et les deux conteneurs y sont rattachés. **Le point d'accès public de la base est fermé** (aucune règle ACL en régime normal) |
 | Registry | Container Registry privé `pilote-nc` : images `pilote-nc`, `pilote-nc-migrate`, `keycloak-pilote` |
@@ -37,12 +42,12 @@ Chaque push sur `main` touchant `apps/pilote-nc/**` ou `pnpm-lock.yaml` lance
 |---|---|---|
 | `DATABASE_URL` | `postgresql://pilote:…@172.16.4.2:5432/pilote_nc?sslmode=require` | oui |
 | `NEXTAUTH_SECRET` | aléatoire (`openssl rand -base64 32`) | oui |
-| `KEYCLOAK_CLIENT_SECRET` | identique à celui du client Keycloak | oui |
+| `KEYCLOAK_CLIENT_SECRET` | secret du client `pilote-nc-prod` **côté Agent Connect (DSI)**, pas du Keycloak auto-hébergé | oui |
 | `BASE_URL`, `NEXTAUTH_URL` | `https://pilote.maxnc.fr` | non |
-| `KEYCLOAK_CLIENT_ID` | `pilote-nc` | non |
-| `KEYCLOAK_ISSUER`, `KEYCLOAK_PUBLIC_ISSUER` | `https://auth.maxnc.fr/realms/pilote` | non |
+| `KEYCLOAK_CLIENT_ID` | `pilote-nc-prod` | non |
+| `KEYCLOAK_ISSUER`, `KEYCLOAK_PUBLIC_ISSUER` | `https://connect.gouv.nc/v3/realms/agent-connect` | non |
 | `LOG_LEVEL` | `info` | non |
-| `DEV_PASSWORD` | **ne jamais définir** : sinon Keycloak est désactivé et les comptes de démonstration réapparaissent | — |
+| `DEV_PASSWORD` | **ne jamais définir** : sinon Keycloak/Agent Connect est désactivé et les comptes de démonstration réapparaissent | — |
 
 **Conteneur `keycloak`**
 
@@ -104,14 +109,20 @@ Le dossier `src/database/prisma/migrations/` fait foi. Migration à connaître :
 
 ## 5. Connexion et comptes
 
-- L'application n'accepte que Keycloak en production : la page `/connexion`
-  n'affiche qu'un bouton « Se connecter ». Les comptes de démonstration ne sont
-  servis que si `DEV_PASSWORD` est défini (développement local).
+- L'application n'accepte que l'authentification externe en production : la
+  page `/connexion` n'affiche qu'un bouton « Se connecter ». Les comptes de
+  démonstration ne sont servis que si `DEV_PASSWORD` est défini (développement
+  local).
+- Depuis le 28/09/2026, cette authentification externe est **Agent Connect**,
+  le Keycloak de la DSI (§6) — plus le Keycloak auto-hébergé de ce projet.
 - Un utilisateur doit exister **des deux côtés** avec le **même email** : dans
-  Keycloak (realm `pilote`) et dans la table `utilisateur`. Un compte Keycloak
-  absent de la table est refusé.
-- **Premier administrateur** : le créer dans Keycloak (console `auth.maxnc.fr`,
-  ou API d'administration, avec un mot de passe provisoire à changer), puis :
+  Agent Connect (côté DSI, hors de notre contrôle) et dans la table
+  `utilisateur`. Un compte Agent Connect absent de la table `utilisateur` est
+  refusé ; on ne crée plus aucun compte utilisateur nous-mêmes dans un
+  Keycloak — la création/désactivation des comptes côté identité est à la
+  charge de la DSI.
+- **Premier administrateur** : s'assurer que la personne a bien un compte
+  Agent Connect (DSI), puis créer sa ligne dans `utilisateur` :
 
   ```sql
   INSERT INTO utilisateur (email, nom, prenom, profil, updated_at)
@@ -121,28 +132,51 @@ Le dossier `src/database/prisma/migrations/` fait foi. Migration à connaître :
   ```
 
   `updated_at` n'a pas de valeur par défaut en base : il doit être fourni.
-- Les autres comptes : Admin > Utilisateurs dans l'application, **et** création
-  du compte dans Keycloak.
+- Les autres comptes : Admin > Utilisateurs dans l'application uniquement (plus
+  de création de compte Keycloak en parallèle).
 
-## 6. Keycloak
+## 6. Identité (Agent Connect et Keycloak auto-hébergé)
+
+### Agent Connect (DSI) — fournisseur en production
+
+- Réalm : `https://connect.gouv.nc/v3/realms/agent-connect` (suit le standard
+  Keycloak : `/protocol/openid-connect/{auth,token,userinfo,logout,certs}`).
+  Client `pilote-nc-prod`, confidentiel (authentification par secret),
+  *Standard Flow* (Authorization Code) uniquement.
+- Redirect URI enregistrée côté DSI : `https://pilote.maxnc.fr/api/auth/callback/keycloak`.
+  Post-logout redirect URI : `https://pilote.maxnc.fr/*`.
+- **La déconnexion applicative ne ferme pas la session Agent Connect** :
+  `signOut()` (`[...nextauth].tsx`) n'appelle pas leur `end_session_endpoint`,
+  seule la session de pilote-nc est fermée. Un utilisateur qui se déconnecte
+  puis reclique sur « Se connecter » sera probablement reconnecté sans
+  ressaisir d'identifiants (SSO actif côté DSI). À corriger si ce n'est pas le
+  comportement voulu.
+- Si l'adresse de l'application change, ou pour toute modification du client
+  `pilote-nc-prod` (redirect URI, secret, scopes), il faut passer par la
+  DSI : nous ne gérons pas leur realm.
+- Le `client_secret` (et l'historique du précédent, pour le Keycloak
+  auto-hébergé) est dans le gestionnaire de mots de passe local, pas dans le
+  dépôt.
+
+### Keycloak auto-hébergé (`auth.maxnc.fr`) — inutilisé, conservé pour l'instant
 
 - L'image (`apps/pilote-nc/keycloak/`) importe `realm-pilote.json` **uniquement
   au premier démarrage**, avec les variables `APP_URL` et
   `KEYCLOAK_CLIENT_SECRET`. Ensuite le realm se modifie dans la console : changer
   le fichier ne suffit pas.
-- Si l'adresse de l'application change, corriger le client `pilote-nc` dans la
-  console : *Valid redirect URIs* = `https://<appli>/api/auth/callback/keycloak`,
-  *Web origins* = `https://<appli>`, et l'URL de redirection après déconnexion.
-  Mettre aussi à jour `KC_HOSTNAME`, `APP_URL` et les variables `KEYCLOAK_*` de
-  l'application (en redonnant la liste complète, voir l'avertissement du §2).
-- `min-scale=1` évite le démarrage à froid de Keycloak mais coûte en continu.
+- `min-scale=1` évite le démarrage à froid de Keycloak mais coûte en continu,
+  pour un service qui ne sert plus l'authentification de l'application.
+  Envisager de l'arrêter (`scw container container update … min-scale=0` puis,
+  si vraiment plus utile, suppression du conteneur et de sa base) — à faire
+  volontairement, pas par ce guide.
 
 ## 7. Changer de domaine
 
 1. Créer les CNAME dans la zone DNS, vers les adresses des conteneurs.
 2. `scw container domain create hostname=<nom> container-id=<ID>` pour chaque
    conteneur, puis attendre l'état `ready` (émission du certificat).
-3. Mettre à jour les variables (§2) et le client Keycloak (§6).
+3. Mettre à jour les variables (§2) et demander à la DSI de corriger la
+   redirect URI du client `pilote-nc-prod` sur Agent Connect (§6).
 
 ## Points à connaître
 
