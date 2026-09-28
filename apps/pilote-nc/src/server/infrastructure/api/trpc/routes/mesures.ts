@@ -96,4 +96,12 @@ export const mesuresRouter = créerRouteurTRPC({
         .resolve("modifierPhaseMesureUseCase")
         .run({ ...input, auteurModificationId: ctx.session.user.id });
     }),
+
+  supprimer: procédureAvecDroit("MESURE_SUPPRIMER")
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(({ ctx, input }) => {
+      return getContainer("mesures")
+        .resolve("supprimerMesureUseCase")
+        .run({ ...input, auteurModificationId: ctx.session.user.id });
+    }),
 });

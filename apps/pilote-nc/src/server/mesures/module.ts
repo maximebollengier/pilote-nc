@@ -12,6 +12,7 @@ import ModifierMesureUseCase from "@/server/mesures/usecases/ModifierMesureUseCa
 import ModifierStatutMesureUseCase from "@/server/mesures/usecases/ModifierStatutMesureUseCase";
 import ModifierPhaseMesureUseCase from "@/server/mesures/usecases/ModifierPhaseMesureUseCase";
 import RecalculerMeteoMesureUseCase from "@/server/mesures/usecases/RecalculerMeteoMesureUseCase";
+import SupprimerMesureUseCase from "@/server/mesures/usecases/SupprimerMesureUseCase";
 
 type MesuresExports = {
   mesureRepository: MesureRepository;
@@ -22,6 +23,7 @@ type MesuresExports = {
   modifierStatutMesureUseCase: ModifierStatutMesureUseCase;
   modifierPhaseMesureUseCase: ModifierPhaseMesureUseCase;
   recalculerMeteoMesureUseCase: RecalculerMeteoMesureUseCase;
+  supprimerMesureUseCase: SupprimerMesureUseCase;
 };
 
 type MesuresCradle = MesuresExports;
@@ -38,6 +40,7 @@ export const mesuresModule = defineModule<MesuresExports, MesuresCradle>()({
     "modifierStatutMesureUseCase",
     "modifierPhaseMesureUseCase",
     "recalculerMeteoMesureUseCase",
+    "supprimerMesureUseCase",
   ],
   register: (container, { asModuleClass }) => {
     container.register({
@@ -51,6 +54,7 @@ export const mesuresModule = defineModule<MesuresExports, MesuresCradle>()({
       recalculerMeteoMesureUseCase: asModuleClass(
         RecalculerMeteoMesureUseCase,
       ),
+      supprimerMesureUseCase: asModuleClass(SupprimerMesureUseCase),
     } satisfies VerifyCradle<MesuresCradle>);
   },
 });

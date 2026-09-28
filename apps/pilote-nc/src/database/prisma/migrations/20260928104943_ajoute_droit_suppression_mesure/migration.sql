@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ActionDroit" ADD VALUE 'MESURE_SUPPRIMER';

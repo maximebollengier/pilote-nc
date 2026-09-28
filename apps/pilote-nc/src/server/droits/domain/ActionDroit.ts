@@ -9,6 +9,7 @@ export const ORDRE_ACTION_DROIT: ActionDroit[] = [
   "MESURE_MODIFIER",
   "MESURE_MODIFIER_STATUT",
   "MESURE_MODIFIER_PHASE",
+  "MESURE_SUPPRIMER",
   "ACTION_CREER",
   "ACTION_MODIFIER",
   "ACTION_SUPPRIMER",
@@ -20,6 +21,7 @@ export const LIBELLES_ACTION_DROIT: Record<ActionDroit, string> = {
   MESURE_MODIFIER: "Modifier une mesure",
   MESURE_MODIFIER_STATUT: "Modifier le statut d'une mesure",
   MESURE_MODIFIER_PHASE: "Modifier la phase d'une mesure",
+  MESURE_SUPPRIMER: "Supprimer une mesure (et ses actions/indicateurs)",
   ACTION_CREER: "Créer une action",
   ACTION_MODIFIER: "Modifier une action (avancement, dates, blocage)",
   ACTION_SUPPRIMER: "Supprimer une action",
@@ -34,6 +36,10 @@ export const DROITS_PAR_DEFAUT: Record<ActionDroit, ProfilEnum[]> = {
   MESURE_MODIFIER: [ProfilEnum.ADMIN_OUTIL, ProfilEnum.PRESIDENT],
   MESURE_MODIFIER_STATUT: [ProfilEnum.ADMIN_OUTIL, ProfilEnum.PRESIDENT],
   MESURE_MODIFIER_PHASE: [ProfilEnum.ADMIN_OUTIL, ProfilEnum.PRESIDENT],
+  // Restreint à ADMIN_OUTIL par défaut (contrairement aux autres actions sur
+  // les mesures) : supprime aussi, en cascade, les actions et indicateurs
+  // d'impact de la mesure.
+  MESURE_SUPPRIMER: [ProfilEnum.ADMIN_OUTIL],
   ACTION_CREER: [
     ProfilEnum.ADMIN_OUTIL,
     ProfilEnum.SECRETARIAT_GENERAL,

@@ -24,6 +24,7 @@ import { VueKanban } from "@/client/components/mesures/VueKanban";
 import { VueKanbanParPhase } from "@/client/components/mesures/VueKanbanParPhase";
 import { MesureAffichage } from "@/client/types/mesure";
 import { Modal } from "@/client/components/Modal";
+import { ConfirmModal } from "@/client/components/ConfirmModal";
 
 const PROFILS_AUTORISES = ["ADMIN_OUTIL", "PRESIDENT"] as const;
 
@@ -50,6 +51,7 @@ type Mesure = {
   meteoAvancement: number | null;
   tauxAvancementIndicateurs: number | null;
   nombreActions: number;
+  nombreIndicateurs: number;
 };
 type Secteur = {
   id: string;
@@ -198,17 +200,24 @@ const LigneMesure = ({
   mesure,
   secteurs,
   peutModifier,
+  peutSupprimer,
 }: {
   mesure: Mesure;
   secteurs: Secteur[] | undefined;
   peutModifier: boolean;
+  peutSupprimer: boolean;
 }) => {
   const utils = trpc.useContext();
   const modifier = trpc.mesures.modifier.useMutation({
     onSuccess: () => utils.mesures.lister.invalidate(),
   });
+  const supprimer = trpc.mesures.supprimer.useMutation({
+    onSuccess: () => utils.mesures.lister.invalidate(),
+  });
 
   const [enEdition, setEnEdition] = useState(false);
+  const [confirmationSuppressionOuverte, setConfirmationSuppressionOuverte] =
+    useState(false);
   const [code, setCode] = useState(mesure.code);
   const [titre, setTitre] = useState(mesure.titre);
   const [secteurId, setSecteurId] = useState(mesure.secteurId);
@@ -382,15 +391,48 @@ const LigneMesure = ({
         )}
       </td>
       <td className="px-4 py-2">
-        {peutModifier ? (
-          <button
-            type="button"
-            onClick={() => setEnEdition(true)}
-            className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-          >
-            Modifier
-          </button>
-        ) : null}
+        <div className="flex items-center gap-1">
+          {peutModifier ? (
+            <button
+              type="button"
+              onClick={() => setEnEdition(true)}
+              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+            >
+              Modifier
+            </button>
+          ) : null}
+          {peutSupprimer ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmationSuppressionOuverte(true)}
+                aria-label="Supprimer la mesure"
+                className="cursor-pointer rounded p-1.5 text-neutral-400 hover:bg-error/10 hover:text-error"
+              >
+                🗑
+              </button>
+              <ConfirmModal
+                open={confirmationSuppressionOuverte}
+                titre="Supprimer la mesure"
+                message={
+                  mesure.nombreActions > 0 || mesure.nombreIndicateurs > 0
+                    ? `Voulez-vous vraiment supprimer la mesure "${mesure.titre}" ? Ses ${mesure.nombreActions} action(s) et ${mesure.nombreIndicateurs} indicateur(s) d'impact seront supprimés avec elle. Cette opération est irréversible.`
+                    : `Voulez-vous vraiment supprimer la mesure "${mesure.titre}" ? Cette opération est irréversible.`
+                }
+                libelleConfirmation="Supprimer"
+                enCours={supprimer.isPending}
+                erreur={supprimer.error?.message ?? null}
+                onConfirmer={() =>
+                  supprimer.mutate(
+                    { id: mesure.id },
+                    { onSuccess: () => setConfirmationSuppressionOuverte(false) },
+                  )
+                }
+                onAnnuler={() => setConfirmationSuppressionOuverte(false)}
+              />
+            </>
+          ) : null}
+        </div>
       </td>
     </tr>
   );
@@ -441,6 +483,11 @@ const PageMesures = () => {
     trpc.profilUtilisateur.getUtilisateurConnecte.useQuery();
   const peutGerer =
     utilisateur?.profil === "ADMIN_OUTIL" || utilisateur?.profil === "PRESIDENT";
+  // Contrairement aux autres actions sur les mesures, la suppression (qui
+  // entraîne celle des actions/indicateurs) reste réservée à l'ADMIN_OUTIL
+  // par défaut — cf. DROITS_PAR_DEFAUT.MESURE_SUPPRIMER, modifiable ensuite
+  // depuis Admin > Droits.
+  const peutSupprimer = utilisateur?.profil === "ADMIN_OUTIL";
   const [vue, setVue] = useState<Vue>("tableau");
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
   const [filtreAccordGouvernance, setFiltreAccordGouvernance] =
@@ -735,6 +782,7 @@ const PageMesures = () => {
                         mesure={mesure}
                         secteurs={secteurs}
                         peutModifier={peutGerer}
+                        peutSupprimer={peutSupprimer}
                       />
                     ))}
                   </tbody>

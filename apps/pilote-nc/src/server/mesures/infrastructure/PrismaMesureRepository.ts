@@ -165,6 +165,36 @@ export default class PrismaMesureRepository implements MesureRepository {
     );
   }
 
+  async supprimer(donnees: {
+    id: string;
+    auteurModificationId: string;
+  }): Promise<void> {
+    const prisma = this.dependencies.prisma.getInstance();
+    const maintenant = new Date();
+
+    await prisma.action.updateMany({
+      where: { mesureId: donnees.id, deletedAt: null },
+      data: {
+        deletedAt: maintenant,
+        auteurModificationId: donnees.auteurModificationId,
+      },
+    });
+    await prisma.indicateurImpact.updateMany({
+      where: { mesureId: donnees.id, deletedAt: null },
+      data: {
+        deletedAt: maintenant,
+        auteurModificationId: donnees.auteurModificationId,
+      },
+    });
+    await prisma.mesure.update({
+      where: { id: donnees.id },
+      data: {
+        deletedAt: maintenant,
+        auteurModificationId: donnees.auteurModificationId,
+      },
+    });
+  }
+
   async recalculerMeteo(mesureId: string): Promise<void> {
     const actions = await this.dependencies.prisma
       .getInstance()
