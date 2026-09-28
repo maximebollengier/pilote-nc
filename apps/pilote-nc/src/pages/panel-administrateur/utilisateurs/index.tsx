@@ -5,7 +5,11 @@ import { auth } from "@/server/infrastructure/api/auth/[...nextauth]";
 import { trpc } from "@/client/utils/trpc";
 import { Layout } from "@/client/components/Layout";
 import { Modal } from "@/client/components/Modal";
-import { LIBELLES_PROFIL, ProfilEnum } from "@/server/app/enum/profil.enum";
+import {
+  LIBELLES_PROFIL,
+  ProfilEnum,
+  PROFILS_ASSIGNABLES,
+} from "@/server/app/enum/profil.enum";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await auth(context);
@@ -24,9 +28,59 @@ type Utilisateur = {
   nom: string;
   prenom: string;
   profil: ProfilEnum;
+  transparenceGlobale: boolean;
   habilitationsSecteur: string[];
 };
 type Secteur = { id: string; code: string; nom: string };
+
+/**
+ * Champs profil (+ transparence globale si Membre du gouvernement), partagés
+ * entre le formulaire de création et celui de modification. NON_DEFINI n'est
+ * jamais proposé : ce n'est pas un choix (cf. profil.enum.ts).
+ */
+const ChampsProfil = ({
+  profil,
+  onProfilChange,
+  transparenceGlobale,
+  onTransparenceGlobaleChange,
+}: {
+  profil: ProfilEnum;
+  onProfilChange: (profil: ProfilEnum) => void;
+  transparenceGlobale: boolean;
+  onTransparenceGlobaleChange: (valeur: boolean) => void;
+}) => (
+  <>
+    <label className="flex flex-col gap-1 text-sm text-neutral-700">
+      Profil
+      <select
+        value={profil}
+        onChange={(event) => onProfilChange(event.target.value as ProfilEnum)}
+        className="rounded border border-neutral-300 px-3 py-2"
+      >
+        {PROFILS_ASSIGNABLES.map((valeur) => (
+          <option key={valeur} value={valeur}>
+            {LIBELLES_PROFIL[valeur]}
+          </option>
+        ))}
+      </select>
+    </label>
+    {profil === ProfilEnum.MEMBRE_GOUVERNEMENT ? (
+      <label className="flex flex-col gap-1 text-sm text-neutral-700">
+        Transparence globale
+        <select
+          value={transparenceGlobale ? "oui" : "non"}
+          onChange={(event) =>
+            onTransparenceGlobaleChange(event.target.value === "oui")
+          }
+          className="rounded border border-neutral-300 px-3 py-2"
+        >
+          <option value="non">Non</option>
+          <option value="oui">Oui</option>
+        </select>
+      </label>
+    ) : null}
+  </>
+);
 
 const LigneUtilisateur = ({
   utilisateur,
@@ -36,13 +90,28 @@ const LigneUtilisateur = ({
   secteurs: Secteur[] | undefined;
 }) => {
   const utils = trpc.useContext();
-  const modifier = trpc.utilisateurs.modifierHabilitationsSecteur.useMutation({
+  const nonConfigure = utilisateur.profil === ProfilEnum.NON_DEFINI;
+
+  const modifierSecteurs = trpc.utilisateurs.modifierHabilitationsSecteur.useMutation({
+    onSuccess: () => utils.utilisateurs.lister.invalidate(),
+  });
+  const modifierProfil = trpc.utilisateurs.modifier.useMutation({
     onSuccess: () => utils.utilisateurs.lister.invalidate(),
   });
 
-  const [enEdition, setEnEdition] = useState(false);
+  const [enEditionSecteurs, setEnEditionSecteurs] = useState(false);
   const [secteurIds, setSecteurIds] = useState<string[]>(
     utilisateur.habilitationsSecteur,
+  );
+
+  const [enEditionProfil, setEnEditionProfil] = useState(nonConfigure);
+  const [prenom, setPrenom] = useState(utilisateur.prenom);
+  const [nom, setNom] = useState(utilisateur.nom);
+  const [profil, setProfil] = useState<ProfilEnum>(
+    nonConfigure ? ProfilEnum.DIRECTION_NC : utilisateur.profil,
+  );
+  const [transparenceGlobale, setTransparenceGlobale] = useState(
+    utilisateur.transparenceGlobale,
   );
 
   const basculerSecteur = (id: string) => {
@@ -53,22 +122,64 @@ const LigneUtilisateur = ({
     );
   };
 
-  const annuler = () => {
+  const annulerSecteurs = () => {
     setSecteurIds(utilisateur.habilitationsSecteur);
-    setEnEdition(false);
+    setEnEditionSecteurs(false);
+  };
+
+  const annulerProfil = () => {
+    setPrenom(utilisateur.prenom);
+    setNom(utilisateur.nom);
+    setProfil(nonConfigure ? ProfilEnum.DIRECTION_NC : utilisateur.profil);
+    setTransparenceGlobale(utilisateur.transparenceGlobale);
+    setEnEditionProfil(false);
   };
 
   return (
     <tr className="border-t border-neutral-100 align-top">
       <td className="px-4 py-2">
-        {utilisateur.prenom} {utilisateur.nom}
+        {enEditionProfil ? (
+          <div className="flex flex-col gap-2">
+            <input
+              value={prenom}
+              onChange={(event) => setPrenom(event.target.value)}
+              placeholder="Prénom"
+              className="rounded border border-neutral-300 px-2 py-1 text-sm"
+            />
+            <input
+              value={nom}
+              onChange={(event) => setNom(event.target.value)}
+              placeholder="Nom"
+              className="rounded border border-neutral-300 px-2 py-1 text-sm"
+            />
+          </div>
+        ) : nonConfigure ? (
+          <span className="text-neutral-400">(à compléter)</span>
+        ) : (
+          `${utilisateur.prenom} ${utilisateur.nom}`
+        )}
       </td>
       <td className="px-4 py-2 text-neutral-600">{utilisateur.email}</td>
       <td className="px-4 py-2 text-neutral-600">
-        {LIBELLES_PROFIL[utilisateur.profil]}
+        {enEditionProfil ? (
+          <div className="flex flex-col gap-2">
+            <ChampsProfil
+              profil={profil}
+              onProfilChange={setProfil}
+              transparenceGlobale={transparenceGlobale}
+              onTransparenceGlobaleChange={setTransparenceGlobale}
+            />
+          </div>
+        ) : nonConfigure ? (
+          <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+            À configurer
+          </span>
+        ) : (
+          LIBELLES_PROFIL[utilisateur.profil]
+        )}
       </td>
       <td className="px-4 py-2">
-        {enEdition ? (
+        {enEditionSecteurs ? (
           <div className="flex flex-wrap gap-2">
             {secteurs?.map((secteur) => (
               <label
@@ -108,41 +219,89 @@ const LigneUtilisateur = ({
         )}
       </td>
       <td className="px-4 py-2">
-        {enEdition ? (
-          <div className="flex gap-2">
+        <div className="flex flex-col items-start gap-2">
+          {enEditionProfil ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={
+                  modifierProfil.isPending || !prenom.trim() || !nom.trim()
+                }
+                onClick={() =>
+                  modifierProfil.mutate(
+                    {
+                      id: utilisateur.id,
+                      prenom: prenom.trim(),
+                      nom: nom.trim(),
+                      profil,
+                      transparenceGlobale,
+                    },
+                    { onSuccess: () => setEnEditionProfil(false) },
+                  )
+                }
+                className="rounded bg-primary px-2 py-1 text-xs text-white hover:bg-primary-hover disabled:opacity-50"
+              >
+                Enregistrer
+              </button>
+              {!nonConfigure ? (
+                <button
+                  type="button"
+                  onClick={annulerProfil}
+                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+                >
+                  Annuler
+                </button>
+              ) : null}
+            </div>
+          ) : (
             <button
               type="button"
-              disabled={modifier.isPending}
-              onClick={() =>
-                modifier.mutate(
-                  { utilisateurId: utilisateur.id, secteurIds },
-                  { onSuccess: () => setEnEdition(false) },
-                )
-              }
-              className="rounded bg-primary px-2 py-1 text-xs text-white hover:bg-primary-hover disabled:opacity-50"
-            >
-              Enregistrer
-            </button>
-            <button
-              type="button"
-              onClick={annuler}
+              onClick={() => setEnEditionProfil(true)}
               className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
             >
-              Annuler
+              Modifier le profil
             </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEnEdition(true)}
-            className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-          >
-            Modifier les secteurs
-          </button>
-        )}
-        {modifier.error ? (
-          <p className="mt-1 text-xs text-error">{modifier.error.message}</p>
-        ) : null}
+          )}
+          {modifierProfil.error ? (
+            <p className="text-xs text-error">{modifierProfil.error.message}</p>
+          ) : null}
+
+          {enEditionSecteurs ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={modifierSecteurs.isPending}
+                onClick={() =>
+                  modifierSecteurs.mutate(
+                    { utilisateurId: utilisateur.id, secteurIds },
+                    { onSuccess: () => setEnEditionSecteurs(false) },
+                  )
+                }
+                className="rounded bg-primary px-2 py-1 text-xs text-white hover:bg-primary-hover disabled:opacity-50"
+              >
+                Enregistrer
+              </button>
+              <button
+                type="button"
+                onClick={annulerSecteurs}
+                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+              >
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEnEditionSecteurs(true)}
+              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+            >
+              Modifier les secteurs
+            </button>
+          )}
+          {modifierSecteurs.error ? (
+            <p className="text-xs text-error">{modifierSecteurs.error.message}</p>
+          ) : null}
+        </div>
       </td>
     </tr>
   );
@@ -204,35 +363,12 @@ const FormulaireNouvelUtilisateur = ({ onCreated }: { onCreated: () => void }) =
           className="rounded border border-neutral-300 px-3 py-2"
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm text-neutral-700">
-        Profil
-        <select
-          value={profil}
-          onChange={(event) => setProfil(event.target.value as ProfilEnum)}
-          className="rounded border border-neutral-300 px-3 py-2"
-        >
-          {Object.entries(LIBELLES_PROFIL).map(([valeur, libelle]) => (
-            <option key={valeur} value={valeur}>
-              {libelle}
-            </option>
-          ))}
-        </select>
-      </label>
-      {profil === ProfilEnum.MEMBRE_GOUVERNEMENT ? (
-        <label className="flex flex-col gap-1 text-sm text-neutral-700">
-          Transparence globale
-          <select
-            value={transparenceGlobale ? "oui" : "non"}
-            onChange={(event) =>
-              setTransparenceGlobale(event.target.value === "oui")
-            }
-            className="rounded border border-neutral-300 px-3 py-2"
-          >
-            <option value="non">Non</option>
-            <option value="oui">Oui</option>
-          </select>
-        </label>
-      ) : null}
+      <ChampsProfil
+        profil={profil}
+        onProfilChange={setProfil}
+        transparenceGlobale={transparenceGlobale}
+        onTransparenceGlobaleChange={setTransparenceGlobale}
+      />
       <button
         type="submit"
         disabled={creer.isPending || !email || !nom || !prenom}
@@ -251,6 +387,9 @@ const PageUtilisateurs = () => {
   const { data: utilisateurs } = trpc.utilisateurs.lister.useQuery();
   const { data: secteurs } = trpc.secteurs.lister.useQuery();
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
+
+  const nombreAConfigurer =
+    utilisateurs?.filter((u) => u.profil === ProfilEnum.NON_DEFINI).length ?? 0;
 
   return (
     <Layout>
@@ -273,6 +412,14 @@ const PageUtilisateurs = () => {
         évoluer (Direction NC) ou consulter (Membre du gouvernement sans
         transparence globale).
       </p>
+      {nombreAConfigurer > 0 ? (
+        <p className="mt-2 text-sm text-warning">
+          {nombreAConfigurer} compte{nombreAConfigurer > 1 ? "s" : ""} créé
+          {nombreAConfigurer > 1 ? "s" : ""} automatiquement à la première
+          connexion, à compléter (nom, profil, secteurs) — « À configurer »
+          ci-dessous.
+        </p>
+      ) : null}
 
       <Modal
         open={modaleCreationOuverte}

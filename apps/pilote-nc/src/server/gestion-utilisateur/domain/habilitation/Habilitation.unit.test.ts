@@ -246,6 +246,15 @@ describe("Habilitation", () => {
       expect(habilitation.peutLireMesure({ secteurId: SECTEUR_B })).toBe(false);
     });
 
+    it("NON_DEFINI (compte auto-provisionné, pas encore configuré) ne lit rien", () => {
+      const habilitation = new Habilitation({
+        profil: "NON_DEFINI",
+        habilitationsSecteur: [],
+        transparenceGlobale: false,
+      });
+      expect(habilitation.peutLireMesure({ secteurId: SECTEUR_A })).toBe(false);
+    });
+
     it("verifierAutorisationLectureMesure lève UnauthorizedError quand peutLireMesure est faux", () => {
       const habilitation = new Habilitation({
         profil: "DIRECTION_NC",

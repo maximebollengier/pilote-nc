@@ -1,4 +1,5 @@
 import { PrismaPilote } from "@/server/db/PrismaPilote";
+import { Prisma } from "@/database/generated/prisma-client";
 import { ProfilEnum } from "@/server/app/enum/profil.enum";
 import Utilisateur from "@/server/gestion-utilisateur/domain/Utilisateur.interface";
 import UtilisateurRepository from "@/server/gestion-utilisateur/domain/ports/UtilisateurRepository";
@@ -69,6 +70,34 @@ export default class PrismaUtilisateurRepository
     return this.versUtilisateur(utilisateur);
   }
 
+  async provisionnerCompteMinimal(email: string): Promise<Utilisateur | null> {
+    try {
+      const utilisateur = await this.dependencies.prisma
+        .getInstance()
+        .utilisateur.create({
+          data: {
+            email,
+            nom: "",
+            prenom: "",
+            profil: ProfilEnum.NON_DEFINI,
+          },
+          include: { habilitationsSecteur: true },
+        });
+      return this.versUtilisateur(utilisateur);
+    } catch (erreur) {
+      // Email déjà présent : soit une course avec une autre requête qui vient
+      // de créer le même compte minimal (on renvoie alors la ligne gagnante),
+      // soit un compte supprimé (`deletedAt` non nul) — `récupérer` filtre ce
+      // cas et renvoie `null`, ce qui est le comportement voulu (ne pas le
+      // réactiver silencieusement).
+      const estConflitEmail =
+        erreur instanceof Prisma.PrismaClientKnownRequestError &&
+        erreur.code === "P2002";
+      if (!estConflitEmail) throw erreur;
+      return this.récupérer(email);
+    }
+  }
+
   // Appelée depuis `ModifierHabilitationsSecteurUseCase` à l'intérieur d'un
   // `transaction.run(...)` : les deux écritures ci-dessous partagent donc la
   // même transaction Prisma via l'AsyncLocalStorage de `getInstance()`, sans
@@ -88,6 +117,28 @@ export default class PrismaUtilisateurRepository
           habilitationsSecteur: {
             create: donnees.secteurIds.map((secteurId) => ({ secteurId })),
           },
+        },
+        include: { habilitationsSecteur: true },
+      });
+    return this.versUtilisateur(utilisateur);
+  }
+
+  async modifier(donnees: {
+    id: string;
+    nom: string;
+    prenom: string;
+    profil: ProfilEnum;
+    transparenceGlobale: boolean;
+  }): Promise<Utilisateur> {
+    const utilisateur = await this.dependencies.prisma
+      .getInstance()
+      .utilisateur.update({
+        where: { id: donnees.id },
+        data: {
+          nom: donnees.nom,
+          prenom: donnees.prenom,
+          profil: donnees.profil,
+          transparenceGlobale: donnees.transparenceGlobale,
         },
         include: { habilitationsSecteur: true },
       });

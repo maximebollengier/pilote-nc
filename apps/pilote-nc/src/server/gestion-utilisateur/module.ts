@@ -9,6 +9,7 @@ import RecupererUnUtilisateurUseCase from "@/server/gestion-utilisateur/usecases
 import ListerUtilisateursUseCase from "@/server/gestion-utilisateur/usecases/ListerUtilisateursUseCase";
 import ModifierHabilitationsSecteurUseCase from "@/server/gestion-utilisateur/usecases/ModifierHabilitationsSecteurUseCase";
 import CreerUtilisateurUseCase from "@/server/gestion-utilisateur/usecases/CreerUtilisateurUseCase";
+import ModifierUtilisateurUseCase from "@/server/gestion-utilisateur/usecases/ModifierUtilisateurUseCase";
 
 type GestionUtilisateurExports = {
   utilisateurRepository: UtilisateurRepository;
@@ -16,6 +17,7 @@ type GestionUtilisateurExports = {
   listerUtilisateursUseCase: ListerUtilisateursUseCase;
   modifierHabilitationsSecteurUseCase: ModifierHabilitationsSecteurUseCase;
   creerUtilisateurUseCase: CreerUtilisateurUseCase;
+  modifierUtilisateurUseCase: ModifierUtilisateurUseCase;
 };
 
 type GestionUtilisateurCradle = GestionUtilisateurExports;
@@ -32,6 +34,7 @@ export const gestionUtilisateurModule = defineModule<
     "listerUtilisateursUseCase",
     "modifierHabilitationsSecteurUseCase",
     "creerUtilisateurUseCase",
+    "modifierUtilisateurUseCase",
   ],
   register: (container, { asModuleClass }) => {
     container.register({
@@ -44,6 +47,7 @@ export const gestionUtilisateurModule = defineModule<
         ModifierHabilitationsSecteurUseCase,
       ),
       creerUtilisateurUseCase: asModuleClass(CreerUtilisateurUseCase),
+      modifierUtilisateurUseCase: asModuleClass(ModifierUtilisateurUseCase),
     } satisfies VerifyCradle<GestionUtilisateurCradle>);
   },
 });

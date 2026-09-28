@@ -69,13 +69,27 @@ export const authConfig: NextAuthConfig = {
     async session({ session, token }) {
       const { getContainer } = await import("@/server/dependances");
       const email = (token.user as User | undefined)?.email ?? session.user.email;
-      const utilisateur = await getContainer("gestionUtilisateur")
-        .resolve("utilisateurRepository")
-        .récupérer(email!);
+      const utilisateurRepository = getContainer("gestionUtilisateur").resolve(
+        "utilisateurRepository",
+      );
+      let utilisateur = await utilisateurRepository.récupérer(email!);
 
       if (!utilisateur) {
-        // Compte désactivé/supprimé entre deux requêtes : la session est
-        // invalidée, proxy.ts redirige alors vers /connexion.
+        // Premier login connu du fournisseur d'identité (Agent Connect) mais
+        // absent de cette table : compte minimal créé à la volée (sans nom,
+        // profil `NON_DEFINI`, aucun secteur), à compléter par un ADMIN_OUTIL
+        // depuis Admin > Utilisateurs. `authorize()` du provider Credentials
+        // (mode DEV_PASSWORD) exige déjà l'existence du compte avant d'
+        // arriver ici : cette branche ne concerne donc que Keycloak/OIDC.
+        utilisateur = await utilisateurRepository.provisionnerCompteMinimal(
+          email!,
+        );
+      }
+
+      if (!utilisateur) {
+        // Compte supprimé entre deux requêtes (provisionnerCompteMinimal ne
+        // réactive pas un compte `deletedAt`) : la session est invalidée,
+        // proxy.ts redirige alors vers /connexion.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return null as any;
       }

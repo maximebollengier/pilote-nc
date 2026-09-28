@@ -9,7 +9,11 @@ import {
   LIBELLES_ACTION_DROIT,
   ACTIONS_SCOPEES_PAR_SECTEUR,
 } from "@/server/droits/domain/ActionDroit";
-import { LIBELLES_PROFIL, ProfilEnum } from "@/server/app/enum/profil.enum";
+import {
+  LIBELLES_PROFIL,
+  ProfilEnum,
+  PROFILS_ASSIGNABLES,
+} from "@/server/app/enum/profil.enum";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await auth(context);
@@ -22,7 +26,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   return { props: {} };
 };
 
-const ORDRE_PROFIL = Object.keys(LIBELLES_PROFIL) as ProfilEnum[];
+// NON_DEFINI (compte auto-provisionné, pas encore configuré) n'a par
+// construction aucun accès : il n'a pas sa place dans cette matrice.
+const ORDRE_PROFIL = PROFILS_ASSIGNABLES;
 
 const PageDroits = () => {
   const utils = trpc.useContext();

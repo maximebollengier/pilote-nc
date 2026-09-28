@@ -13,6 +13,13 @@ datasource db {
 // ============================================================
 
 enum ProfilEnum {
+  // Compte provisionné automatiquement à la première connexion (Agent
+  // Connect) quand aucune ligne n'existait encore pour cet email : sans nom
+  // ni secteur, en attente qu'un ADMIN_OUTIL lui attribue un vrai profil.
+  // N'apparaît ni dans la matrice de droits ni dans les formulaires de
+  // création/modification manuelle (cf. PROFILS_ASSIGNABLES) : sans accès
+  // par construction, aucune branche de Habilitation ne le mentionne.
+  NON_DEFINI
   PRESIDENT
   MEMBRE_GOUVERNEMENT
   SECRETARIAT_GENERAL
