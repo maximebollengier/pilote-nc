@@ -16,6 +16,8 @@ import { LIBELLES_TYPE_ACTION, TypeAction } from "@/server/actions/domain/TypeAc
 import { GraphiqueEvolutionIndicateurs } from "@/client/components/mesures/GraphiqueEvolutionIndicateurs";
 import { BadgeBloquee } from "@/client/components/BadgeBloquee";
 import { Modal } from "@/client/components/Modal";
+import { ConfirmModal } from "@/client/components/ConfirmModal";
+import { SensEvolution } from "@/server/indicateurs-impact/domain/SensEvolution";
 
 export const getServerSideProps: GetServerSideProps<
   Record<string, never>,
@@ -254,6 +256,70 @@ const LigneAction = ({
   );
 };
 
+/**
+ * Champs nom/valeurs/sens, partagés entre les formulaires d'ajout et de
+ * modification d'un indicateur d'impact.
+ */
+const ChampsIndicateur = ({
+  nom,
+  onNomChange,
+  valeurInitiale,
+  onValeurInitialeChange,
+  valeurCible,
+  onValeurCibleChange,
+  sensEvolution,
+  onSensEvolutionChange,
+}: {
+  nom: string;
+  onNomChange: (valeur: string) => void;
+  valeurInitiale: string;
+  onValeurInitialeChange: (valeur: string) => void;
+  valeurCible: string;
+  onValeurCibleChange: (valeur: string) => void;
+  sensEvolution: SensEvolution;
+  onSensEvolutionChange: (valeur: SensEvolution) => void;
+}) => (
+  <>
+    <label className="flex flex-col gap-1 text-sm text-neutral-700">
+      Nom de l'indicateur
+      <input
+        value={nom}
+        onChange={(event) => onNomChange(event.target.value)}
+        className="rounded border border-neutral-300 px-3 py-2"
+      />
+    </label>
+    <label className="flex flex-col gap-1 text-sm text-neutral-700">
+      Valeur initiale
+      <input
+        type="number"
+        value={valeurInitiale}
+        onChange={(event) => onValeurInitialeChange(event.target.value)}
+        className="rounded border border-neutral-300 px-3 py-2"
+      />
+    </label>
+    <label className="flex flex-col gap-1 text-sm text-neutral-700">
+      Valeur cible
+      <input
+        type="number"
+        value={valeurCible}
+        onChange={(event) => onValeurCibleChange(event.target.value)}
+        className="rounded border border-neutral-300 px-3 py-2"
+      />
+    </label>
+    <label className="flex flex-col gap-1 text-sm text-neutral-700">
+      Sens d'évolution
+      <select
+        value={sensEvolution}
+        onChange={(event) => onSensEvolutionChange(event.target.value as SensEvolution)}
+        className="rounded border border-neutral-300 px-3 py-2"
+      >
+        <option value="A_LA_HAUSSE">À la hausse</option>
+        <option value="A_LA_BAISSE">À la baisse</option>
+      </select>
+    </label>
+  </>
+);
+
 const FormulaireNouvelIndicateur = ({
   mesureId,
   onCreated,
@@ -269,9 +335,7 @@ const FormulaireNouvelIndicateur = ({
   const [nom, setNom] = useState("");
   const [valeurInitiale, setValeurInitiale] = useState("0");
   const [valeurCible, setValeurCible] = useState("0");
-  const [sensEvolution, setSensEvolution] = useState<"A_LA_HAUSSE" | "A_LA_BAISSE">(
-    "A_LA_HAUSSE",
-  );
+  const [sensEvolution, setSensEvolution] = useState<SensEvolution>("A_LA_HAUSSE");
 
   const soumettre = (event: FormEvent) => {
     event.preventDefault();
@@ -295,45 +359,16 @@ const FormulaireNouvelIndicateur = ({
 
   return (
     <form onSubmit={soumettre} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm text-neutral-700">
-        Nom de l'indicateur
-        <input
-          value={nom}
-          onChange={(event) => setNom(event.target.value)}
-          className="rounded border border-neutral-300 px-3 py-2"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-neutral-700">
-        Valeur initiale
-        <input
-          type="number"
-          value={valeurInitiale}
-          onChange={(event) => setValeurInitiale(event.target.value)}
-          className="rounded border border-neutral-300 px-3 py-2"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-neutral-700">
-        Valeur cible
-        <input
-          type="number"
-          value={valeurCible}
-          onChange={(event) => setValeurCible(event.target.value)}
-          className="rounded border border-neutral-300 px-3 py-2"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-neutral-700">
-        Sens d'évolution
-        <select
-          value={sensEvolution}
-          onChange={(event) =>
-            setSensEvolution(event.target.value as "A_LA_HAUSSE" | "A_LA_BAISSE")
-          }
-          className="rounded border border-neutral-300 px-3 py-2"
-        >
-          <option value="A_LA_HAUSSE">À la hausse</option>
-          <option value="A_LA_BAISSE">À la baisse</option>
-        </select>
-      </label>
+      <ChampsIndicateur
+        nom={nom}
+        onNomChange={setNom}
+        valeurInitiale={valeurInitiale}
+        onValeurInitialeChange={setValeurInitiale}
+        valeurCible={valeurCible}
+        onValeurCibleChange={setValeurCible}
+        sensEvolution={sensEvolution}
+        onSensEvolutionChange={setSensEvolution}
+      />
       <button
         type="submit"
         disabled={creer.isPending || !nom}
@@ -343,6 +378,179 @@ const FormulaireNouvelIndicateur = ({
       </button>
       {creer.error ? <p className="text-sm text-error">{creer.error.message}</p> : null}
     </form>
+  );
+};
+
+const FormulaireModifierIndicateur = ({
+  indicateur,
+  onModifie,
+}: {
+  indicateur: {
+    id: string;
+    mesureId: string;
+    nom: string;
+    sensEvolution: SensEvolution;
+    valeurInitiale: number;
+    valeurCible: number;
+    unite: string | null;
+  };
+  onModifie: () => void;
+}) => {
+  const utils = trpc.useContext();
+  const modifier = trpc.indicateursImpact.modifier.useMutation({
+    onSuccess: () =>
+      utils.indicateursImpact.listerParMesure.invalidate({
+        mesureId: indicateur.mesureId,
+      }),
+  });
+  const [nom, setNom] = useState(indicateur.nom);
+  const [valeurInitiale, setValeurInitiale] = useState(String(indicateur.valeurInitiale));
+  const [valeurCible, setValeurCible] = useState(String(indicateur.valeurCible));
+  const [sensEvolution, setSensEvolution] = useState<SensEvolution>(
+    indicateur.sensEvolution,
+  );
+
+  const soumettre = (event: FormEvent) => {
+    event.preventDefault();
+    modifier.mutate(
+      {
+        id: indicateur.id,
+        nom,
+        unite: indicateur.unite,
+        sensEvolution,
+        valeurInitiale: Number(valeurInitiale),
+        valeurCible: Number(valeurCible),
+      },
+      { onSuccess: onModifie },
+    );
+  };
+
+  return (
+    <form onSubmit={soumettre} className="flex flex-col gap-4">
+      <ChampsIndicateur
+        nom={nom}
+        onNomChange={setNom}
+        valeurInitiale={valeurInitiale}
+        onValeurInitialeChange={setValeurInitiale}
+        valeurCible={valeurCible}
+        onValeurCibleChange={setValeurCible}
+        sensEvolution={sensEvolution}
+        onSensEvolutionChange={setSensEvolution}
+      />
+      <button
+        type="submit"
+        disabled={modifier.isPending || !nom}
+        className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-hover disabled:opacity-50"
+      >
+        Enregistrer
+      </button>
+      {modifier.error ? (
+        <p className="text-sm text-error">{modifier.error.message}</p>
+      ) : null}
+    </form>
+  );
+};
+
+const LigneIndicateur = ({
+  indicateur,
+  mesureId,
+  peutGerer,
+}: {
+  indicateur: {
+    id: string;
+    nom: string;
+    unite: string | null;
+    sensEvolution: SensEvolution;
+    valeurInitiale: number;
+    valeurCible: number;
+    valeurActuelle: number | null;
+    tauxRealisation: number | null;
+  };
+  mesureId: string;
+  peutGerer: boolean;
+}) => {
+  const utils = trpc.useContext();
+  const supprimer = trpc.indicateursImpact.supprimer.useMutation({
+    onSuccess: () =>
+      utils.indicateursImpact.listerParMesure.invalidate({ mesureId }),
+  });
+  const [modaleModificationOuverte, setModaleModificationOuverte] = useState(false);
+  const [confirmationSuppressionOuverte, setConfirmationSuppressionOuverte] =
+    useState(false);
+
+  return (
+    <tr className="border-t border-neutral-100">
+      <td className="px-4 py-2">
+        <Link
+          href={`/mesure/${mesureId}/indicateur/${indicateur.id}`}
+          className="text-primary hover:underline"
+        >
+          {indicateur.nom}
+        </Link>
+      </td>
+      <td className="px-4 py-2">{indicateur.valeurInitiale}</td>
+      <td className="px-4 py-2">{indicateur.valeurActuelle ?? "—"}</td>
+      <td className="px-4 py-2">{indicateur.valeurCible}</td>
+      <td className="px-4 py-2">
+        {indicateur.tauxRealisation === null
+          ? "—"
+          : `${Math.round(indicateur.tauxRealisation)}%`}
+      </td>
+      <td className="px-4 py-2">
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/mesure/${mesureId}/indicateur/${indicateur.id}`}
+            className="rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-100"
+          >
+            Voir détails
+          </Link>
+          {peutGerer ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setModaleModificationOuverte(true)}
+                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+              >
+                Modifier
+              </button>
+              <Modal
+                open={modaleModificationOuverte}
+                titre="Modifier l'indicateur d'impact"
+                onFermer={() => setModaleModificationOuverte(false)}
+              >
+                <FormulaireModifierIndicateur
+                  indicateur={{ ...indicateur, mesureId }}
+                  onModifie={() => setModaleModificationOuverte(false)}
+                />
+              </Modal>
+              <button
+                type="button"
+                onClick={() => setConfirmationSuppressionOuverte(true)}
+                aria-label="Supprimer l'indicateur"
+                className="cursor-pointer rounded p-1.5 text-neutral-400 hover:bg-error/10 hover:text-error"
+              >
+                🗑
+              </button>
+              <ConfirmModal
+                open={confirmationSuppressionOuverte}
+                titre="Supprimer l'indicateur"
+                message={`Voulez-vous vraiment supprimer l'indicateur "${indicateur.nom}" ? Cette opération est irréversible.`}
+                libelleConfirmation="Supprimer"
+                enCours={supprimer.isPending}
+                erreur={supprimer.error?.message ?? null}
+                onConfirmer={() =>
+                  supprimer.mutate(
+                    { id: indicateur.id },
+                    { onSuccess: () => setConfirmationSuppressionOuverte(false) },
+                  )
+                }
+                onAnnuler={() => setConfirmationSuppressionOuverte(false)}
+              />
+            </>
+          ) : null}
+        </div>
+      </td>
+    </tr>
   );
 };
 
@@ -579,34 +787,12 @@ const PageDetailMesure = () => {
             </thead>
             <tbody>
               {indicateurs?.map((indicateur) => (
-                <tr key={indicateur.id} className="border-t border-neutral-100">
-                  <td className="px-4 py-2">
-                    <Link
-                      href={`/mesure/${mesure.id}/indicateur/${indicateur.id}`}
-                      className="text-primary hover:underline"
-                    >
-                      {indicateur.nom}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2">{indicateur.valeurInitiale}</td>
-                  <td className="px-4 py-2">
-                    {indicateur.valeurActuelle ?? "—"}
-                  </td>
-                  <td className="px-4 py-2">{indicateur.valeurCible}</td>
-                  <td className="px-4 py-2">
-                    {indicateur.tauxRealisation === null
-                      ? "—"
-                      : `${Math.round(indicateur.tauxRealisation)}%`}
-                  </td>
-                  <td className="px-4 py-2">
-                    <Link
-                      href={`/mesure/${mesure.id}/indicateur/${indicateur.id}`}
-                      className="rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-100"
-                    >
-                      Voir détails
-                    </Link>
-                  </td>
-                </tr>
+                <LigneIndicateur
+                  key={indicateur.id}
+                  indicateur={indicateur}
+                  mesureId={mesure.id}
+                  peutGerer={estAdmin}
+                />
               ))}
             </tbody>
           </table>

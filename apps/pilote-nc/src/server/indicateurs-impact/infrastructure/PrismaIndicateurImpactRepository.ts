@@ -80,6 +80,46 @@ export default class PrismaIndicateurImpactRepository
     });
   }
 
+  async modifier(donnees: {
+    id: string;
+    nom: string;
+    unite: string | null;
+    sensEvolution: SensEvolution;
+    valeurInitiale: number;
+    valeurCible: number;
+    tauxRealisation: number | null;
+    auteurModificationId: string;
+  }): Promise<IndicateurImpact> {
+    const indicateur = await this.dependencies.prisma
+      .getInstance()
+      .indicateurImpact.update({
+        where: { id: donnees.id },
+        data: {
+          nom: donnees.nom,
+          unite: donnees.unite,
+          sensEvolution: donnees.sensEvolution,
+          valeurInitiale: donnees.valeurInitiale,
+          valeurCible: donnees.valeurCible,
+          tauxRealisation: donnees.tauxRealisation,
+          auteurModificationId: donnees.auteurModificationId,
+        },
+      });
+    return this.versIndicateur(indicateur);
+  }
+
+  async supprimer(donnees: {
+    id: string;
+    auteurModificationId: string;
+  }): Promise<void> {
+    await this.dependencies.prisma.getInstance().indicateurImpact.update({
+      where: { id: donnees.id },
+      data: {
+        deletedAt: new Date(),
+        auteurModificationId: donnees.auteurModificationId,
+      },
+    });
+  }
+
   private versIndicateur(indicateur: {
     id: string;
     mesureId: string;

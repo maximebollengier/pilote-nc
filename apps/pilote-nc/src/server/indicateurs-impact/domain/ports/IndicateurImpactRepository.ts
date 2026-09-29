@@ -22,4 +22,16 @@ export default interface IndicateurImpactRepository {
     dateValeurActuelle: Date;
     tauxRealisation: number | null;
   }): Promise<void>;
+  modifier(donnees: {
+    id: string;
+    nom: string;
+    unite: string | null;
+    sensEvolution: SensEvolution;
+    valeurInitiale: number;
+    valeurCible: number;
+    // Recalculé par l'usecase (dépend de valeurActuelle, non modifiée ici).
+    tauxRealisation: number | null;
+    auteurModificationId: string;
+  }): Promise<IndicateurImpact>;
+  supprimer(donnees: { id: string; auteurModificationId: string }): Promise<void>;
 }
