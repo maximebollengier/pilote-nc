@@ -160,7 +160,7 @@ const PageAccueil = () => {
       </Head>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-neutral-800">
-          Mesures du gouvernement
+          Tableau de bord
         </h1>
         <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1">
           {VUES.map((option) => (
