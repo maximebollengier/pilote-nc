@@ -62,7 +62,7 @@ type Colonne =
 
 const COLONNES: { cle: Colonne; libelle: string }[] = [
   { cle: "titre", libelle: "Action" },
-  { cle: "mesureTitre", libelle: "Mesure" },
+  { cle: "mesureTitre", libelle: "Objectif" },
   { cle: "type", libelle: "Type" },
   { cle: "datePrevisionnelleDebut", libelle: "Début prévisionnel" },
   { cle: "datePrevisionnelleFin", libelle: "Fin prévisionnelle" },
@@ -162,7 +162,7 @@ const FormulaireNouvelleAction = ({
   return (
     <form onSubmit={soumettre} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-neutral-700">
-        Mesure
+        Objectif
         <select
           value={mesureId}
           onChange={(event) => setMesureId(event.target.value)}

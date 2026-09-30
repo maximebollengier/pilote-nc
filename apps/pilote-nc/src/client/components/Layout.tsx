@@ -49,7 +49,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           className="hover:text-primary"
           onClick={fermerMenuMobile}
         >
-          Mesures
+          Objectifs
         </Link>
       ) : null}
       <Link href="/actions" className="hover:text-primary" onClick={fermerMenuMobile}>

@@ -406,18 +406,18 @@ const LigneMesure = ({
               <button
                 type="button"
                 onClick={() => setConfirmationSuppressionOuverte(true)}
-                aria-label="Supprimer la mesure"
+                aria-label="Supprimer l'objectif"
                 className="cursor-pointer rounded p-1.5 text-neutral-400 hover:bg-error/10 hover:text-error"
               >
                 🗑
               </button>
               <ConfirmModal
                 open={confirmationSuppressionOuverte}
-                titre="Supprimer la mesure"
+                titre="Supprimer l'objectif"
                 message={
                   mesure.nombreActions > 0 || mesure.nombreIndicateurs > 0
-                    ? `Voulez-vous vraiment supprimer la mesure "${mesure.titre}" ? Ses ${mesure.nombreActions} action(s) et ${mesure.nombreIndicateurs} indicateur(s) d'impact seront supprimés avec elle. Cette opération est irréversible.`
-                    : `Voulez-vous vraiment supprimer la mesure "${mesure.titre}" ? Cette opération est irréversible.`
+                    ? `Voulez-vous vraiment supprimer l'objectif "${mesure.titre}" ? Ses ${mesure.nombreActions} action(s) et ${mesure.nombreIndicateurs} indicateur(s) d'impact seront supprimés avec lui. Cette opération est irréversible.`
+                    : `Voulez-vous vraiment supprimer l'objectif "${mesure.titre}" ? Cette opération est irréversible.`
                 }
                 libelleConfirmation="Supprimer"
                 enCours={supprimer.isPending}
@@ -585,10 +585,10 @@ const PageMesures = () => {
   return (
     <Layout>
       <Head>
-        <title>Mesures - PILOTE Nouvelle-Calédonie</title>
+        <title>Objectifs - PILOTE Nouvelle-Calédonie</title>
       </Head>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-neutral-800">Mesures</h1>
+        <h1 className="text-2xl font-semibold text-neutral-800">Objectifs</h1>
         <div className="flex items-center gap-3">
           <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1">
             {VUES.map((option) => (
@@ -612,7 +612,7 @@ const PageMesures = () => {
               onClick={() => setModaleCreationOuverte(true)}
               className="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
             >
-              Ajouter une mesure
+              Ajouter un objectif
             </button>
           ) : null}
         </div>
@@ -636,7 +636,7 @@ const PageMesures = () => {
 
       <Modal
         open={modaleCreationOuverte}
-        titre="Ajouter une mesure"
+        titre="Ajouter un objectif"
         onFermer={() => setModaleCreationOuverte(false)}
       >
         <form onSubmit={soumettre} className="flex flex-col gap-4">
