@@ -634,7 +634,7 @@ const PageDetailMesure = () => {
     return (
       <Layout>
         <p className="text-neutral-500">
-          Mesure introuvable, ou vous n'avez pas les droits pour la consulter.
+          Objectif introuvable, ou vous n'avez pas les droits pour le consulter.
         </p>
       </Layout>
     );
@@ -675,7 +675,7 @@ const PageDetailMesure = () => {
       )}
 
       <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-5">
-        <h2 className="font-medium text-neutral-800">Météo de la mesure</h2>
+        <h2 className="font-medium text-neutral-800">Météo de l'objectif</h2>
         <p className="mt-2 text-3xl font-semibold text-primary">
           {mesure.meteoAvancement === null
             ? "—"
