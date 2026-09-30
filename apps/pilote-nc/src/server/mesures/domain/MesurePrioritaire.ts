@@ -21,5 +21,5 @@ export const LIBELLES_MESURE_PRIORITAIRE: Record<MesurePrioritaire, string> = {
   REFORME_RETRAITES_SECTEUR_PRIVE: "Réforme des retraites du secteur privé",
   FISCALITE_ET_RELANCE_ECONOMIQUE: "Fiscalité et relance économique",
   POUVOIR_ACHAT_ET_URGENCE_SOCIALE: "Pouvoir d'achat et urgence sociale",
-  NON_PRIORITAIRE: "Mesure non prioritaire",
+  NON_PRIORITAIRE: "Objectif non prioritaire",
 };

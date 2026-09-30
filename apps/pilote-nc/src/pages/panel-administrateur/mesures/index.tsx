@@ -698,7 +698,7 @@ const PageMesures = () => {
             </div>
           </label>
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
-            Mesure prioritaire
+            Objectif prioritaire
             <select
               value={mesurePrioritaire}
               onChange={(event) =>
@@ -763,7 +763,7 @@ const PageMesures = () => {
                           onClick={basculerTri}
                         />
                       ))}
-                      <th className="px-4 py-2">Mesure prioritaire</th>
+                      <th className="px-4 py-2">Objectif prioritaire</th>
                       {COLONNES.slice(4).map((colonne) => (
                         <EnTeteColonne
                           key={colonne.cle}

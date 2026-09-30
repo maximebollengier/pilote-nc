@@ -18,7 +18,7 @@ type Colonne =
 const COLONNES: { cle: Colonne; libelle: string }[] = [
   { cle: "titre", libelle: "Mesure" },
   { cle: "nombreActions", libelle: "Nombre d'actions" },
-  { cle: "mesurePrioritaire", libelle: "Mesure prioritaire" },
+  { cle: "mesurePrioritaire", libelle: "Objectif prioritaire" },
   { cle: "meteoAvancement", libelle: "Avancement des actions" },
   { cle: "tauxAvancementIndicateurs", libelle: "Avancement des indicateurs" },
 ];
