@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useMemo, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { GetServerSideProps } from "next";
 import { auth } from "@/server/infrastructure/api/auth/[...nextauth]";
 import { trpc } from "@/client/utils/trpc";
@@ -14,9 +14,8 @@ import {
 import { LIBELLES_MESURE_PRIORITAIRE } from "@/server/mesures/domain/MesurePrioritaire";
 import { LIBELLES_TYPE_ACTION, TypeAction } from "@/server/actions/domain/TypeAction";
 import { GraphiqueEvolutionIndicateurs } from "@/client/components/mesures/GraphiqueEvolutionIndicateurs";
-import { BadgeBloquee } from "@/client/components/BadgeBloquee";
+import { TableauActions } from "@/client/components/actions/TableauActions";
 import { Modal } from "@/client/components/Modal";
-import { BarreAvancement } from "@/client/components/BarreAvancement";
 import { InfoBulle } from "@/client/components/InfoBulle";
 import { couleurSelonValeur } from "@/client/utils/couleurSelonValeur";
 import { ConfirmModal } from "@/client/components/ConfirmModal";
@@ -32,10 +31,6 @@ export const getServerSideProps: GetServerSideProps<
   }
   return { props: {} };
 };
-
-function versValeurInput(date: Date | null): string {
-  return date ? new Date(date).toISOString().slice(0, 10) : "";
-}
 
 const FormulaireNouvelleAction = ({
   mesureId,
@@ -129,105 +124,6 @@ const FormulaireNouvelleAction = ({
   );
 };
 
-type ActionDeLaMesure = {
-  id: string;
-  titre: string;
-  type: TypeAction;
-  tauxAvancement: number;
-  datePrevisionnelleDebut: Date | null;
-  datePrevisionnelleFin: Date | null;
-  bloquee: boolean;
-  raisonBlocage: string | null;
-  precisionArbitrage: string | null;
-};
-
-type ColonneAction =
-  | "titre"
-  | "type"
-  | "datePrevisionnelleDebut"
-  | "datePrevisionnelleFin"
-  | "tauxAvancement"
-  | "bloquee";
-
-const COLONNES_ACTIONS: { cle: ColonneAction; libelle: string }[] = [
-  { cle: "titre", libelle: "Titre" },
-  { cle: "type", libelle: "Type" },
-  { cle: "datePrevisionnelleDebut", libelle: "Début prévisionnel" },
-  { cle: "datePrevisionnelleFin", libelle: "Fin prévisionnelle" },
-  { cle: "tauxAvancement", libelle: "Avancement" },
-  { cle: "bloquee", libelle: "Bloquée" },
-];
-
-type TriActions = { colonne: ColonneAction; croissant: boolean };
-
-function comparerDatesNullables(a: Date | null, b: Date | null): number {
-  if (a === null && b === null) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return new Date(a).getTime() - new Date(b).getTime();
-}
-
-function comparerActions(
-  a: ActionDeLaMesure,
-  b: ActionDeLaMesure,
-  { colonne, croissant }: TriActions,
-): number {
-  const sens = croissant ? 1 : -1;
-  switch (colonne) {
-    case "titre":
-      return a.titre.localeCompare(b.titre) * sens;
-    case "type":
-      return (
-        LIBELLES_TYPE_ACTION[a.type].localeCompare(LIBELLES_TYPE_ACTION[b.type]) *
-        sens
-      );
-    case "datePrevisionnelleDebut":
-      return (
-        comparerDatesNullables(a.datePrevisionnelleDebut, b.datePrevisionnelleDebut) *
-        sens
-      );
-    case "datePrevisionnelleFin":
-      return (
-        comparerDatesNullables(a.datePrevisionnelleFin, b.datePrevisionnelleFin) *
-        sens
-      );
-    case "tauxAvancement":
-      return (a.tauxAvancement - b.tauxAvancement) * sens;
-    case "bloquee":
-      return (Number(a.bloquee) - Number(b.bloquee)) * sens;
-  }
-}
-
-const EnTeteTrie = ({
-  colonne,
-  tri,
-  onClick,
-}: {
-  colonne: { cle: ColonneAction; libelle: string };
-  tri: TriActions | null;
-  onClick: (colonne: ColonneAction) => void;
-}) => {
-  const actif = tri?.colonne === colonne.cle;
-  return (
-    <th
-      scope="col"
-      aria-sort={actif ? (tri.croissant ? "ascending" : "descending") : "none"}
-      className="px-3 py-2"
-    >
-      <button
-        type="button"
-        onClick={() => onClick(colonne.cle)}
-        className="flex cursor-pointer items-center gap-1 text-left font-medium hover:text-neutral-900"
-      >
-        {colonne.libelle}
-        <span aria-hidden="true" className="text-xs text-neutral-600">
-          {actif ? (tri.croissant ? "▲" : "▼") : "↕"}
-        </span>
-      </button>
-    </th>
-  );
-};
-
 const STYLES_STATUT_MESURE: Record<StatutMesure, string> = {
   A_L_ETUDE: "bg-blue-100 text-blue-800 ring-blue-300",
   ACTEE: "bg-green-100 text-green-800 ring-green-300",
@@ -281,190 +177,6 @@ const CarteKpi = ({
         />
       </div>
     </div>
-  );
-};
-
-const LigneAction = ({
-  action,
-  peutSaisir,
-}: {
-  action: ActionDeLaMesure;
-  peutSaisir: boolean;
-}) => {
-  const utils = trpc.useContext();
-  const invalider = () => {
-    utils.actions.listerParMesure.invalidate();
-    utils.mesures.recuperer.invalidate();
-    utils.mesures.lister.invalidate();
-  };
-  const saisir = trpc.actions.saisirAvancement.useMutation({
-    onSuccess: invalider,
-  });
-  const modifierDates = trpc.actions.modifierDatesPrevisionnelles.useMutation({
-    onSuccess: invalider,
-  });
-  const [enEdition, setEnEdition] = useState(false);
-  const [valeur, setValeur] = useState(String(action.tauxAvancement));
-  const [datePrevisionnelleDebut, setDatePrevisionnelleDebut] = useState(
-    versValeurInput(action.datePrevisionnelleDebut),
-  );
-  const [datePrevisionnelleFin, setDatePrevisionnelleFin] = useState(
-    versValeurInput(action.datePrevisionnelleFin),
-  );
-
-  const annuler = () => {
-    setEnEdition(false);
-    setValeur(String(action.tauxAvancement));
-    setDatePrevisionnelleDebut(versValeurInput(action.datePrevisionnelleDebut));
-    setDatePrevisionnelleFin(versValeurInput(action.datePrevisionnelleFin));
-    saisir.reset();
-    modifierDates.reset();
-  };
-
-  // Les deux champs se mettent à jour d'un seul clic ; on n'appelle que les
-  // mutations dont la valeur a réellement changé.
-  const enregistrer = async () => {
-    const datesModifiees =
-      datePrevisionnelleDebut !== versValeurInput(action.datePrevisionnelleDebut) ||
-      datePrevisionnelleFin !== versValeurInput(action.datePrevisionnelleFin);
-    const avancementModifie = Number(valeur) !== action.tauxAvancement;
-    try {
-      if (datesModifiees) {
-        await modifierDates.mutateAsync({
-          id: action.id,
-          datePrevisionnelleDebut: datePrevisionnelleDebut || null,
-          datePrevisionnelleFin: datePrevisionnelleFin || null,
-        });
-      }
-      if (avancementModifie) {
-        await saisir.mutateAsync({ id: action.id, tauxAvancement: Number(valeur) });
-      }
-      setEnEdition(false);
-    } catch {
-      // L'erreur est affichée dans la ligne via `.error` de chaque mutation.
-    }
-  };
-
-  const enCours = saisir.isPending || modifierDates.isPending;
-  const formaterDate = (date: Date | null) =>
-    date ? new Date(date).toLocaleDateString("fr-FR") : "—";
-
-  return (
-    <tr className="border-t border-neutral-100">
-      <td className="px-3 py-2">{action.titre}</td>
-      <td className="px-3 py-2">{LIBELLES_TYPE_ACTION[action.type]}</td>
-      {enEdition ? (
-        <>
-          <td className="px-3 py-2">
-            <input
-              type="date"
-              value={datePrevisionnelleDebut}
-              onChange={(event) => setDatePrevisionnelleDebut(event.target.value)}
-              aria-label={`Début prévisionnel de l'action « ${action.titre} »`}
-              className="w-36 rounded border border-neutral-300 px-2 py-1"
-            />
-          </td>
-          <td className="px-3 py-2">
-            <input
-              type="date"
-              value={datePrevisionnelleFin}
-              onChange={(event) => setDatePrevisionnelleFin(event.target.value)}
-              aria-label={`Fin prévisionnelle de l'action « ${action.titre} »`}
-              className="w-36 rounded border border-neutral-300 px-2 py-1"
-            />
-            {modifierDates.error ? (
-              <p className="mt-1 text-xs text-error">{modifierDates.error.message}</p>
-            ) : null}
-          </td>
-        </>
-      ) : (
-        <>
-          <td className="px-3 py-2 text-neutral-600">
-            {formaterDate(action.datePrevisionnelleDebut)}
-          </td>
-          <td className="px-3 py-2 text-neutral-600">
-            {formaterDate(action.datePrevisionnelleFin)}
-          </td>
-        </>
-      )}
-      <td className="px-3 py-2">
-        {enEdition ? (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={valeur}
-                onChange={(event) => setValeur(event.target.value)}
-                aria-label={`Avancement de l'action « ${action.titre} » en pourcentage`}
-                className="w-20 rounded border border-neutral-300 px-2 py-1"
-              />
-              <span>%</span>
-            </div>
-            <BarreAvancement valeur={action.tauxAvancement} afficherValeur={false} />
-            {saisir.error ? (
-              <p className="text-xs text-error">{saisir.error.message}</p>
-            ) : null}
-          </div>
-        ) : (
-          <BarreAvancement valeur={action.tauxAvancement} />
-        )}
-      </td>
-      <td className="px-3 py-2">
-        <BadgeBloquee
-          action={action}
-          peutGerer={peutSaisir}
-          onChanged={invalider}
-          afficherInfo={false}
-        />
-        {action.bloquee && action.raisonBlocage ? (
-          <p className="mt-1 max-w-[12rem] whitespace-pre-wrap text-xs text-neutral-700">
-            {action.raisonBlocage}
-          </p>
-        ) : null}
-        {action.bloquee && action.precisionArbitrage ? (
-          <p className="mt-1 max-w-[12rem] whitespace-pre-wrap text-xs text-neutral-700">
-            <span className="font-medium">Arbitrage demandé :</span>{" "}
-            {action.precisionArbitrage}
-          </p>
-        ) : null}
-      </td>
-      {peutSaisir ? (
-        <td className="px-3 py-2 print:hidden">
-          <div className="flex flex-col items-stretch gap-1">
-            {enEdition ? (
-              <>
-                <button
-                  type="button"
-                  onClick={enregistrer}
-                  disabled={enCours}
-                  className="rounded bg-primary px-2 py-1 text-xs font-medium text-white hover:bg-primary-hover disabled:opacity-50"
-                >
-                  Enregistrer
-                </button>
-                <button
-                  type="button"
-                  onClick={annuler}
-                  disabled={enCours}
-                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
-                >
-                  Annuler
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setEnEdition(true)}
-                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-              >
-                Mettre à jour
-              </button>
-            )}
-          </div>
-        </td>
-      ) : null}
-    </tr>
   );
 };
 
@@ -835,21 +547,6 @@ const PageDetailMesure = () => {
     { enabled: mesureId !== "" },
   );
 
-  const [triActions, setTriActions] = useState<TriActions | null>(null);
-  const basculerTriActions = (colonne: ColonneAction) =>
-    setTriActions((actuel) =>
-      actuel?.colonne === colonne
-        ? { colonne, croissant: !actuel.croissant }
-        : { colonne, croissant: true },
-    );
-  const actionsTriees = useMemo(
-    () =>
-      actions && triActions
-        ? [...actions].sort((a, b) => comparerActions(a, b, triActions))
-        : actions,
-    [actions, triActions],
-  );
-
   if (mesureEnChargement) {
     return (
       <Layout>
@@ -957,35 +654,8 @@ const PageDetailMesure = () => {
             </button>
           ) : null}
         </div>
-        <div className="mt-3 overflow-x-auto print:overflow-visible">
-          <table className="w-full border-collapse text-sm">
-            <thead className="text-left text-neutral-600">
-              <tr>
-                {COLONNES_ACTIONS.map((colonne) => (
-                  <EnTeteTrie
-                    key={colonne.cle}
-                    colonne={colonne}
-                    tri={triActions}
-                    onClick={basculerTriActions}
-                  />
-                ))}
-                {estDirectionNc ? (
-                  <th scope="col" className="px-3 py-2 font-medium print:hidden">
-                    Options
-                  </th>
-                ) : null}
-              </tr>
-            </thead>
-            <tbody>
-              {actionsTriees?.map((action) => (
-                <LigneAction
-                  key={action.id}
-                  action={action}
-                  peutSaisir={estDirectionNc}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-3">
+          <TableauActions actions={actions} peutGerer={estDirectionNc} />
         </div>
         {estAdmin || estDirectionNc ? (
           <Modal
