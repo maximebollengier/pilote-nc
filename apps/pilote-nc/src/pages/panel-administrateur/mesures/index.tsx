@@ -196,28 +196,19 @@ const SelecteurPhaseInline = ({
   );
 };
 
-const LigneMesure = ({
+const FormulaireModifierMesure = ({
   mesure,
   secteurs,
-  peutModifier,
-  peutSupprimer,
+  onModifie,
 }: {
   mesure: Mesure;
   secteurs: Secteur[] | undefined;
-  peutModifier: boolean;
-  peutSupprimer: boolean;
+  onModifie: () => void;
 }) => {
   const utils = trpc.useContext();
   const modifier = trpc.mesures.modifier.useMutation({
     onSuccess: () => utils.mesures.lister.invalidate(),
   });
-  const supprimer = trpc.mesures.supprimer.useMutation({
-    onSuccess: () => utils.mesures.lister.invalidate(),
-  });
-
-  const [enEdition, setEnEdition] = useState(false);
-  const [confirmationSuppressionOuverte, setConfirmationSuppressionOuverte] =
-    useState(false);
   const [code, setCode] = useState(mesure.code);
   const [titre, setTitre] = useState(mesure.titre);
   const [secteurId, setSecteurId] = useState(mesure.secteurId);
@@ -234,127 +225,120 @@ const LigneMesure = ({
     );
   };
 
-  const annuler = () => {
-    setCode(mesure.code);
-    setTitre(mesure.titre);
-    setSecteurId(mesure.secteurId);
-    setCoPorteurIds(mesure.coPorteurIds);
-    setMesurePrioritaire(mesure.mesurePrioritaire);
-    setEnEdition(false);
+  const soumettre = (event: FormEvent) => {
+    event.preventDefault();
+    modifier.mutate(
+      { id: mesure.id, code, titre, secteurId, coPorteurIds, mesurePrioritaire },
+      { onSuccess: onModifie },
+    );
   };
 
-  if (enEdition && peutModifier) {
-    return (
-      <tr className="border-t border-neutral-100 align-top">
-        <td className="px-4 py-2">
-          <input
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            className="w-full rounded border border-neutral-300 px-2 py-1"
-          />
-        </td>
-        <td className="px-4 py-2">
-          <input
-            value={titre}
-            onChange={(event) => setTitre(event.target.value)}
-            className="w-full rounded border border-neutral-300 px-2 py-1"
-          />
-        </td>
-        <td className="px-4 py-2">
-          <select
-            value={secteurId}
-            onChange={(event) => {
-              setSecteurId(event.target.value);
-              setCoPorteurIds((actuel) =>
-                actuel.filter((coPorteurId) => coPorteurId !== event.target.value),
-              );
-            }}
-            className="w-full rounded border border-neutral-300 px-2 py-1"
-          >
-            {secteurs?.map((secteur) => (
-              <option key={secteur.id} value={secteur.id}>
+  return (
+    <form onSubmit={soumettre} className="flex flex-col gap-4">
+      <label className="flex flex-col gap-1 text-sm text-neutral-700">
+        Code
+        <input
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          className="rounded border border-neutral-300 px-3 py-2"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-neutral-700">
+        Titre
+        <input
+          value={titre}
+          onChange={(event) => setTitre(event.target.value)}
+          className="rounded border border-neutral-300 px-3 py-2"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-neutral-700">
+        Porteur
+        <select
+          value={secteurId}
+          onChange={(event) => {
+            setSecteurId(event.target.value);
+            setCoPorteurIds((actuel) =>
+              actuel.filter((coPorteurId) => coPorteurId !== event.target.value),
+            );
+          }}
+          className="rounded border border-neutral-300 px-3 py-2"
+        >
+          {secteurs?.map((secteur) => (
+            <option key={secteur.id} value={secteur.id}>
+              {secteur.nom}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-neutral-700">
+        Co-porteurs
+        <div className="flex flex-wrap gap-2 py-2">
+          {secteurs
+            ?.filter((secteur) => secteur.id !== secteurId)
+            .map((secteur) => (
+              <label
+                key={secteur.id}
+                className="flex items-center gap-1 rounded border border-neutral-300 px-2 py-1 text-xs font-normal"
+              >
+                <input
+                  type="checkbox"
+                  checked={coPorteurIds.includes(secteur.id)}
+                  onChange={() => basculerCoPorteur(secteur.id)}
+                />
                 {secteur.nom}
-              </option>
+              </label>
             ))}
-          </select>
-        </td>
-        <td className="px-4 py-2">
-          <div className="flex flex-wrap gap-2">
-            {secteurs
-              ?.filter((secteur) => secteur.id !== secteurId)
-              .map((secteur) => (
-                <label
-                  key={secteur.id}
-                  className="flex items-center gap-1 rounded border border-neutral-300 px-2 py-1 text-xs"
-                >
-                  <input
-                    type="checkbox"
-                    checked={coPorteurIds.includes(secteur.id)}
-                    onChange={() => basculerCoPorteur(secteur.id)}
-                  />
-                  {secteur.nom}
-                </label>
-              ))}
-          </div>
-        </td>
-        <td className="px-4 py-2">
-          <select
-            value={mesurePrioritaire}
-            onChange={(event) =>
-              setMesurePrioritaire(event.target.value as MesurePrioritaire)
-            }
-            className="w-full rounded border border-neutral-300 px-2 py-1"
-          >
-            {ORDRE_MESURE_PRIORITAIRE.map((valeur) => (
-              <option key={valeur} value={valeur}>
-                {LIBELLES_MESURE_PRIORITAIRE[valeur]}
-              </option>
-            ))}
-          </select>
-        </td>
-        <td className="px-4 py-2">
-          <SelecteurStatutInline mesureId={mesure.id} statutActuel={mesure.statut} />
-        </td>
-        <td className="px-4 py-2">
-          <SelecteurPhaseInline mesureId={mesure.id} phaseActuelle={mesure.phase} />
-        </td>
-        <td className="px-4 py-2">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={modifier.isPending}
-              onClick={() =>
-                modifier.mutate(
-                  {
-                    id: mesure.id,
-                    code,
-                    titre,
-                    secteurId,
-                    coPorteurIds,
-                    mesurePrioritaire,
-                  },
-                  { onSuccess: () => setEnEdition(false) },
-                )
-              }
-              className="rounded bg-primary px-2 py-1 text-xs text-white hover:bg-primary-hover"
-            >
-              Enregistrer
-            </button>
-            <button
-              type="button"
-              onClick={annuler}
-              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-            >
-              Annuler
-            </button>
-          </div>
-          {modifier.error ? (
-            <p className="mt-1 text-xs text-error">{modifier.error.message}</p>
-          ) : null}
-        </td>
-      </tr>
-    );
-  }
+        </div>
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-neutral-700">
+        Objectif prioritaire
+        <select
+          value={mesurePrioritaire}
+          onChange={(event) =>
+            setMesurePrioritaire(event.target.value as MesurePrioritaire)
+          }
+          className="rounded border border-neutral-300 px-3 py-2"
+        >
+          {ORDRE_MESURE_PRIORITAIRE.map((valeur) => (
+            <option key={valeur} value={valeur}>
+              {LIBELLES_MESURE_PRIORITAIRE[valeur]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        type="submit"
+        disabled={modifier.isPending || !code || !titre || !secteurId}
+        className="rounded bg-primary px-4 py-2 text-white hover:bg-primary-hover disabled:opacity-50"
+      >
+        Enregistrer
+      </button>
+      {modifier.error ? (
+        <p className="text-sm text-error">{modifier.error.message}</p>
+      ) : null}
+    </form>
+  );
+};
+
+const LigneMesure = ({
+  mesure,
+  secteurs,
+  peutModifier,
+  peutSupprimer,
+}: {
+  mesure: Mesure;
+  secteurs: Secteur[] | undefined;
+  peutModifier: boolean;
+  peutSupprimer: boolean;
+}) => {
+  const utils = trpc.useContext();
+  const supprimer = trpc.mesures.supprimer.useMutation({
+    onSuccess: () => utils.mesures.lister.invalidate(),
+  });
+
+  const [modaleModificationOuverte, setModaleModificationOuverte] = useState(false);
+  const [confirmationSuppressionOuverte, setConfirmationSuppressionOuverte] =
+    useState(false);
 
   return (
     <tr className="border-t border-neutral-100">
@@ -393,13 +377,26 @@ const LigneMesure = ({
       <td className="px-4 py-2">
         <div className="flex items-center gap-1">
           {peutModifier ? (
-            <button
-              type="button"
-              onClick={() => setEnEdition(true)}
-              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-            >
-              Modifier
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setModaleModificationOuverte(true)}
+                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+              >
+                Modifier
+              </button>
+              <Modal
+                open={modaleModificationOuverte}
+                titre="Modifier l'objectif"
+                onFermer={() => setModaleModificationOuverte(false)}
+              >
+                <FormulaireModifierMesure
+                  mesure={mesure}
+                  secteurs={secteurs}
+                  onModifie={() => setModaleModificationOuverte(false)}
+                />
+              </Modal>
+            </>
           ) : null}
           {peutSupprimer ? (
             <>
@@ -462,9 +459,9 @@ const EnTeteColonne = ({
 );
 
 const VUES = [
+  { id: "kanban-phase", libelle: "Vue par statut" },
+  { id: "kanban", libelle: "Vue par objectif" },
   { id: "tableau", libelle: "Tableau" },
-  { id: "kanban", libelle: "Kanban" },
-  { id: "kanban-phase", libelle: "Kanban (Phases)" },
 ] as const;
 type Vue = (typeof VUES)[number]["id"];
 
