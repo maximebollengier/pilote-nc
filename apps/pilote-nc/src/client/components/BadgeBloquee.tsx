@@ -70,10 +70,12 @@ export const BadgeBloquee = ({
   action,
   peutGerer,
   onChanged,
+  afficherInfo = true,
 }: {
   action: ActionBloquee;
   peutGerer: boolean;
   onChanged?: () => void;
+  afficherInfo?: boolean;
 }) => {
   const bascule = trpc.actions.definirBlocage.useMutation({
     onSuccess: onChanged,
@@ -112,7 +114,7 @@ export const BadgeBloquee = ({
     return (
       <span className="inline-flex items-center gap-1">
         <span className={classes}>{action.bloquee ? "Oui" : "Non"}</span>
-        {action.bloquee ? <BoutonInfoBlocage action={action} /> : null}
+        {action.bloquee && afficherInfo ? <BoutonInfoBlocage action={action} /> : null}
       </span>
     );
   }
@@ -132,7 +134,7 @@ export const BadgeBloquee = ({
       >
         {action.bloquee ? "Oui" : "Non"}
       </button>
-      {action.bloquee ? <BoutonInfoBlocage action={action} /> : null}
+      {action.bloquee && afficherInfo ? <BoutonInfoBlocage action={action} /> : null}
 
       <Modal
         open={modaleBlocageOuverte}

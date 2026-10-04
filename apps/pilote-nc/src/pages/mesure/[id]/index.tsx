@@ -212,7 +212,7 @@ const EnTeteTrie = ({
     <th
       scope="col"
       aria-sort={actif ? (tri.croissant ? "ascending" : "descending") : "none"}
-      className="px-4 py-2"
+      className="px-3 py-2"
     >
       <button
         type="button"
@@ -303,6 +303,9 @@ const LigneAction = ({
   const modifierDates = trpc.actions.modifierDatesPrevisionnelles.useMutation({
     onSuccess: invalider,
   });
+  // Un seul mode d'édition à la fois : les dates (« Modifier ») ou
+  // l'avancement (« Mettre à jour »).
+  const [mode, setMode] = useState<"dates" | "avancement" | null>(null);
   const [valeur, setValeur] = useState(String(action.tauxAvancement));
   const [datePrevisionnelleDebut, setDatePrevisionnelleDebut] = useState(
     versValeurInput(action.datePrevisionnelleDebut),
@@ -311,43 +314,60 @@ const LigneAction = ({
     versValeurInput(action.datePrevisionnelleFin),
   );
 
+  const annuler = () => {
+    setMode(null);
+    setValeur(String(action.tauxAvancement));
+    setDatePrevisionnelleDebut(versValeurInput(action.datePrevisionnelleDebut));
+    setDatePrevisionnelleFin(versValeurInput(action.datePrevisionnelleFin));
+    saisir.reset();
+    modifierDates.reset();
+  };
+
+  const enregistrer = () => {
+    if (mode === "dates") {
+      modifierDates.mutate(
+        {
+          id: action.id,
+          datePrevisionnelleDebut: datePrevisionnelleDebut || null,
+          datePrevisionnelleFin: datePrevisionnelleFin || null,
+        },
+        { onSuccess: () => setMode(null) },
+      );
+    } else if (mode === "avancement") {
+      saisir.mutate(
+        { id: action.id, tauxAvancement: Number(valeur) },
+        { onSuccess: () => setMode(null) },
+      );
+    }
+  };
+
+  const enCours = saisir.isPending || modifierDates.isPending;
+  const formaterDate = (date: Date | null) =>
+    date ? new Date(date).toLocaleDateString("fr-FR") : "—";
+
   return (
     <tr className="border-t border-neutral-100">
-      <td className="px-4 py-2">{action.titre}</td>
-      <td className="px-4 py-2">{LIBELLES_TYPE_ACTION[action.type]}</td>
-      {peutSaisir ? (
+      <td className="px-3 py-2">{action.titre}</td>
+      <td className="px-3 py-2">{LIBELLES_TYPE_ACTION[action.type]}</td>
+      {mode === "dates" ? (
         <>
-          <td className="px-4 py-2">
+          <td className="px-3 py-2">
             <input
               type="date"
               value={datePrevisionnelleDebut}
               onChange={(event) => setDatePrevisionnelleDebut(event.target.value)}
+              aria-label={`Début prévisionnel de l'action « ${action.titre} »`}
               className="rounded border border-neutral-300 px-2 py-1"
             />
           </td>
-          <td className="px-4 py-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={datePrevisionnelleFin}
-                onChange={(event) => setDatePrevisionnelleFin(event.target.value)}
-                className="rounded border border-neutral-300 px-2 py-1"
-              />
-              <button
-                type="button"
-                disabled={modifierDates.isPending}
-                onClick={() =>
-                  modifierDates.mutate({
-                    id: action.id,
-                    datePrevisionnelleDebut: datePrevisionnelleDebut || null,
-                    datePrevisionnelleFin: datePrevisionnelleFin || null,
-                  })
-                }
-                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-              >
-                Mettre à jour
-              </button>
-            </div>
+          <td className="px-3 py-2">
+            <input
+              type="date"
+              value={datePrevisionnelleFin}
+              onChange={(event) => setDatePrevisionnelleFin(event.target.value)}
+              aria-label={`Fin prévisionnelle de l'action « ${action.titre} »`}
+              className="w-36 rounded border border-neutral-300 px-2 py-1"
+            />
             {modifierDates.error ? (
               <p className="mt-1 text-xs text-error">{modifierDates.error.message}</p>
             ) : null}
@@ -355,28 +375,18 @@ const LigneAction = ({
         </>
       ) : (
         <>
-          <td className="px-4 py-2 text-neutral-600">
-            {action.datePrevisionnelleDebut
-              ? new Date(action.datePrevisionnelleDebut).toLocaleDateString("fr-FR")
-              : "—"}
+          <td className="px-3 py-2 text-neutral-600">
+            {formaterDate(action.datePrevisionnelleDebut)}
           </td>
-          <td className="px-4 py-2 text-neutral-600">
-            {action.datePrevisionnelleFin
-              ? new Date(action.datePrevisionnelleFin).toLocaleDateString("fr-FR")
-              : "—"}
+          <td className="px-3 py-2 text-neutral-600">
+            {formaterDate(action.datePrevisionnelleFin)}
           </td>
         </>
       )}
-      <td className="px-4 py-2">
-        {peutSaisir ? (
+      <td className="px-3 py-2">
+        {mode === "avancement" ? (
           <div className="flex flex-col gap-1.5">
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                saisir.mutate({ id: action.id, tauxAvancement: Number(valeur) });
-              }}
-            >
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={0}
@@ -387,31 +397,78 @@ const LigneAction = ({
                 className="w-20 rounded border border-neutral-300 px-2 py-1"
               />
               <span>%</span>
-              <button
-                type="submit"
-                disabled={saisir.isPending}
-                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 print:hidden"
-              >
-                Mettre à jour
-              </button>
-            </form>
+            </div>
             <BarreAvancement valeur={action.tauxAvancement} afficherValeur={false} />
+            {saisir.error ? (
+              <p className="text-xs text-error">{saisir.error.message}</p>
+            ) : null}
           </div>
         ) : (
           <BarreAvancement valeur={action.tauxAvancement} />
         )}
       </td>
-      <td className="px-4 py-2">
-        <BadgeBloquee action={action} peutGerer={peutSaisir} onChanged={invalider} />
+      <td className="px-3 py-2">
+        <BadgeBloquee
+          action={action}
+          peutGerer={peutSaisir}
+          onChanged={invalider}
+          afficherInfo={false}
+        />
         {action.bloquee && action.raisonBlocage ? (
-          <p
-            title={action.raisonBlocage}
-            className="mt-1 line-clamp-2 max-w-[14rem] text-xs text-neutral-700"
-          >
+          <p className="mt-1 max-w-[12rem] whitespace-pre-wrap text-xs text-neutral-700">
             {action.raisonBlocage}
           </p>
         ) : null}
+        {action.bloquee && action.precisionArbitrage ? (
+          <p className="mt-1 max-w-[12rem] whitespace-pre-wrap text-xs text-neutral-700">
+            <span className="font-medium">Arbitrage demandé :</span>{" "}
+            {action.precisionArbitrage}
+          </p>
+        ) : null}
       </td>
+      {peutSaisir ? (
+        <td className="px-3 py-2 print:hidden">
+          <div className="flex flex-col items-stretch gap-1">
+            {mode === null ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setMode("dates")}
+                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+                >
+                  Modifier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("avancement")}
+                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+                >
+                  Mettre à jour
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={enregistrer}
+                  disabled={enCours}
+                  className="rounded bg-primary px-2 py-1 text-xs font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+                >
+                  Enregistrer
+                </button>
+                <button
+                  type="button"
+                  onClick={annuler}
+                  disabled={enCours}
+                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+              </>
+            )}
+          </div>
+        </td>
+      ) : null}
     </tr>
   );
 };
@@ -671,7 +728,7 @@ const LigneIndicateur = ({
                 onClick={() => setModaleModificationOuverte(true)}
                 className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
               >
-                Modifier
+                Mettre à jour
               </button>
               <Modal
                 open={modaleModificationOuverte}
@@ -917,6 +974,11 @@ const PageDetailMesure = () => {
                     onClick={basculerTriActions}
                   />
                 ))}
+                {estDirectionNc ? (
+                  <th scope="col" className="px-3 py-2 font-medium print:hidden">
+                    Options
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -992,7 +1054,7 @@ const PageDetailMesure = () => {
                 <th className="px-4 py-2">Valeur actuelle</th>
                 <th className="px-4 py-2">Cible</th>
                 <th className="px-4 py-2">Taux de réalisation</th>
-                <th className="px-4 py-2 print:hidden">Actions</th>
+                <th className="px-4 py-2 print:hidden">Options</th>
               </tr>
             </thead>
             <tbody>
