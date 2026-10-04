@@ -5,12 +5,18 @@ import { couleurSelonValeur } from "@/client/utils/couleurSelonValeur";
  * contextes où l'anneau circulaire est trop encombrant (tableau, Kanban).
  * `valeur` à `null` signifie que le taux n'est pas calculable.
  */
-export const BarreAvancement = ({ valeur }: { valeur: number | null }) => {
+export const BarreAvancement = ({
+  valeur,
+  afficherValeur = true,
+}: {
+  valeur: number | null;
+  afficherValeur?: boolean;
+}) => {
   if (valeur === null) {
     return (
       <div className="flex items-center gap-2">
         <div className="h-2 w-20 rounded-full bg-neutral-100" />
-        <span className="text-xs text-neutral-400">—</span>
+        {afficherValeur ? <span className="text-xs text-neutral-600">—</span> : null}
       </div>
     );
   }
@@ -26,9 +32,11 @@ export const BarreAvancement = ({ valeur }: { valeur: number | null }) => {
           style={{ width: `${pourcentage}%` }}
         />
       </div>
-      <span className={`text-xs font-medium ${couleur.texte}`}>
-        {Math.round(pourcentage)}%
-      </span>
+      {afficherValeur ? (
+        <span className={`text-xs font-medium ${couleur.texte}`}>
+          {Math.round(pourcentage)}%
+        </span>
+      ) : null}
     </div>
   );
 };

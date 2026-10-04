@@ -73,7 +73,7 @@ export const Jauge = ({ libelle, valeur, taille = TAILLE_PAR_DEFAUT }: JaugeProp
         </text>
       </svg>
       {libelle ? (
-        <span className="max-w-[80px] text-center text-[11px] leading-tight text-neutral-500">
+        <span className="max-w-[80px] text-center text-[11px] leading-tight text-neutral-600">
           {libelle}
         </span>
       ) : null}

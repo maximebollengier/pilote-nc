@@ -12,7 +12,7 @@ export function couleurSelonValeur(pourcentage: number): {
     return { anneau: "text-red-500", texte: "text-red-600", barre: "bg-red-500" };
   }
   if (pourcentage < 70) {
-    return { anneau: "text-amber-500", texte: "text-amber-600", barre: "bg-amber-500" };
+    return { anneau: "text-amber-500", texte: "text-amber-700", barre: "bg-amber-500" };
   }
   return { anneau: "text-green-600", texte: "text-green-700", barre: "bg-green-600" };
 }

@@ -70,8 +70,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white">
+    <div className="min-h-screen bg-neutral-50 [-webkit-print-color-adjust:exact] [print-color-adjust:exact] print:bg-white">
+      <header className="border-b border-neutral-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-3 font-semibold text-neutral-800">
             {/* eslint-disable-next-line @next/next/no-img-element -- next/image

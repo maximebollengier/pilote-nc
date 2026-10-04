@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState, FormEvent } from "react";
+import { useMemo, useState, FormEvent } from "react";
 import { GetServerSideProps } from "next";
 import { auth } from "@/server/infrastructure/api/auth/[...nextauth]";
 import { trpc } from "@/client/utils/trpc";
@@ -16,7 +16,9 @@ import { LIBELLES_TYPE_ACTION, TypeAction } from "@/server/actions/domain/TypeAc
 import { GraphiqueEvolutionIndicateurs } from "@/client/components/mesures/GraphiqueEvolutionIndicateurs";
 import { BadgeBloquee } from "@/client/components/BadgeBloquee";
 import { Modal } from "@/client/components/Modal";
-import { Jauge } from "@/client/components/Jauge";
+import { BarreAvancement } from "@/client/components/BarreAvancement";
+import { InfoBulle } from "@/client/components/InfoBulle";
+import { couleurSelonValeur } from "@/client/utils/couleurSelonValeur";
 import { ConfirmModal } from "@/client/components/ConfirmModal";
 import { SensEvolution } from "@/server/indicateurs-impact/domain/SensEvolution";
 
@@ -127,21 +129,166 @@ const FormulaireNouvelleAction = ({
   );
 };
 
+type ActionDeLaMesure = {
+  id: string;
+  titre: string;
+  type: TypeAction;
+  tauxAvancement: number;
+  datePrevisionnelleDebut: Date | null;
+  datePrevisionnelleFin: Date | null;
+  bloquee: boolean;
+  raisonBlocage: string | null;
+  precisionArbitrage: string | null;
+};
+
+type ColonneAction =
+  | "titre"
+  | "type"
+  | "datePrevisionnelleDebut"
+  | "datePrevisionnelleFin"
+  | "tauxAvancement"
+  | "bloquee";
+
+const COLONNES_ACTIONS: { cle: ColonneAction; libelle: string }[] = [
+  { cle: "titre", libelle: "Titre" },
+  { cle: "type", libelle: "Type" },
+  { cle: "datePrevisionnelleDebut", libelle: "Début prévisionnel" },
+  { cle: "datePrevisionnelleFin", libelle: "Fin prévisionnelle" },
+  { cle: "tauxAvancement", libelle: "Avancement" },
+  { cle: "bloquee", libelle: "Bloquée" },
+];
+
+type TriActions = { colonne: ColonneAction; croissant: boolean };
+
+function comparerDatesNullables(a: Date | null, b: Date | null): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return new Date(a).getTime() - new Date(b).getTime();
+}
+
+function comparerActions(
+  a: ActionDeLaMesure,
+  b: ActionDeLaMesure,
+  { colonne, croissant }: TriActions,
+): number {
+  const sens = croissant ? 1 : -1;
+  switch (colonne) {
+    case "titre":
+      return a.titre.localeCompare(b.titre) * sens;
+    case "type":
+      return (
+        LIBELLES_TYPE_ACTION[a.type].localeCompare(LIBELLES_TYPE_ACTION[b.type]) *
+        sens
+      );
+    case "datePrevisionnelleDebut":
+      return (
+        comparerDatesNullables(a.datePrevisionnelleDebut, b.datePrevisionnelleDebut) *
+        sens
+      );
+    case "datePrevisionnelleFin":
+      return (
+        comparerDatesNullables(a.datePrevisionnelleFin, b.datePrevisionnelleFin) *
+        sens
+      );
+    case "tauxAvancement":
+      return (a.tauxAvancement - b.tauxAvancement) * sens;
+    case "bloquee":
+      return (Number(a.bloquee) - Number(b.bloquee)) * sens;
+  }
+}
+
+const EnTeteTrie = ({
+  colonne,
+  tri,
+  onClick,
+}: {
+  colonne: { cle: ColonneAction; libelle: string };
+  tri: TriActions | null;
+  onClick: (colonne: ColonneAction) => void;
+}) => {
+  const actif = tri?.colonne === colonne.cle;
+  return (
+    <th
+      scope="col"
+      aria-sort={actif ? (tri.croissant ? "ascending" : "descending") : "none"}
+      className="px-4 py-2"
+    >
+      <button
+        type="button"
+        onClick={() => onClick(colonne.cle)}
+        className="flex cursor-pointer items-center gap-1 text-left font-medium hover:text-neutral-900"
+      >
+        {colonne.libelle}
+        <span aria-hidden="true" className="text-xs text-neutral-600">
+          {actif ? (tri.croissant ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+};
+
+const STYLES_STATUT_MESURE: Record<StatutMesure, string> = {
+  A_L_ETUDE: "bg-blue-100 text-blue-800 ring-blue-300",
+  ACTEE: "bg-green-100 text-green-800 ring-green-300",
+  ABANDONNEE: "bg-neutral-200 text-neutral-700 ring-neutral-400",
+};
+
+const CLASSES_BADGE_STATUT =
+  "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset";
+
+const BadgeStatutMesure = ({ statut }: { statut: StatutMesure }) => (
+  <span className={`${CLASSES_BADGE_STATUT} ${STYLES_STATUT_MESURE[statut]}`}>
+    {LIBELLES_STATUT_MESURE[statut]}
+  </span>
+);
+
+const CarteKpi = ({
+  libelle,
+  detail,
+  valeur,
+}: {
+  libelle: string;
+  detail: string;
+  valeur: number | null;
+}) => {
+  const pourcentage = valeur === null ? 0 : Math.max(0, Math.min(100, valeur));
+  const couleur = couleurSelonValeur(pourcentage);
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 print:break-inside-avoid">
+      <p className="text-sm font-medium text-neutral-700">{libelle}</p>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span
+          className={`text-3xl font-semibold ${
+            valeur === null ? "text-neutral-600" : couleur.texte
+          }`}
+        >
+          {valeur === null ? "—" : `${Math.round(pourcentage)}%`}
+        </span>
+        <span className="text-xs text-neutral-600">{detail}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label={libelle}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={valeur === null ? undefined : Math.round(pourcentage)}
+        className="mt-2 h-2 rounded-full bg-neutral-200"
+      >
+        <div
+          className={`h-2 rounded-full ${couleur.barre}`}
+          style={{ width: `${pourcentage}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const LigneAction = ({
   action,
   peutSaisir,
 }: {
-  action: {
-    id: string;
-    titre: string;
-    type: TypeAction;
-    tauxAvancement: number;
-    datePrevisionnelleDebut: Date | null;
-    datePrevisionnelleFin: Date | null;
-    bloquee: boolean;
-    raisonBlocage: string | null;
-    precisionArbitrage: string | null;
-  };
+  action: ActionDeLaMesure;
   peutSaisir: boolean;
 }) => {
   const utils = trpc.useContext();
@@ -222,36 +369,48 @@ const LigneAction = ({
       )}
       <td className="px-4 py-2">
         {peutSaisir ? (
-          <form
-            className="flex items-center gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              saisir.mutate({ id: action.id, tauxAvancement: Number(valeur) });
-            }}
-          >
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={valeur}
-              onChange={(event) => setValeur(event.target.value)}
-              className="w-20 rounded border border-neutral-300 px-2 py-1"
-            />
-            <span>%</span>
-            <button
-              type="submit"
-              disabled={saisir.isPending}
-              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+          <div className="flex flex-col gap-1.5">
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saisir.mutate({ id: action.id, tauxAvancement: Number(valeur) });
+              }}
             >
-              Mettre à jour
-            </button>
-          </form>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={valeur}
+                onChange={(event) => setValeur(event.target.value)}
+                aria-label={`Avancement de l'action « ${action.titre} » en pourcentage`}
+                className="w-20 rounded border border-neutral-300 px-2 py-1"
+              />
+              <span>%</span>
+              <button
+                type="submit"
+                disabled={saisir.isPending}
+                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 print:hidden"
+              >
+                Mettre à jour
+              </button>
+            </form>
+            <BarreAvancement valeur={action.tauxAvancement} afficherValeur={false} />
+          </div>
         ) : (
-          `${action.tauxAvancement}%`
+          <BarreAvancement valeur={action.tauxAvancement} />
         )}
       </td>
       <td className="px-4 py-2">
         <BadgeBloquee action={action} peutGerer={peutSaisir} onChanged={invalider} />
+        {action.bloquee && action.raisonBlocage ? (
+          <p
+            title={action.raisonBlocage}
+            className="mt-1 line-clamp-2 max-w-[14rem] text-xs text-neutral-700"
+          >
+            {action.raisonBlocage}
+          </p>
+        ) : null}
       </td>
     </tr>
   );
@@ -497,7 +656,7 @@ const LigneIndicateur = ({
           ? "—"
           : `${Math.round(indicateur.tauxRealisation)}%`}
       </td>
-      <td className="px-4 py-2">
+      <td className="px-4 py-2 print:hidden">
         <div className="flex items-center gap-1">
           <Link
             href={`/mesure/${mesureId}/indicateur/${indicateur.id}`}
@@ -528,7 +687,7 @@ const LigneIndicateur = ({
                 type="button"
                 onClick={() => setConfirmationSuppressionOuverte(true)}
                 aria-label="Supprimer l'indicateur"
-                className="cursor-pointer rounded p-1.5 text-neutral-400 hover:bg-error/10 hover:text-error"
+                className="cursor-pointer rounded p-1.5 text-neutral-600 hover:bg-error/10 hover:text-error"
               >
                 🗑
               </button>
@@ -571,9 +730,10 @@ const SelecteurStatutMesure = ({
   });
 
   return (
-    <div className="mt-1 flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <select
         value={statutActuel}
+        aria-label="Statut de l'objectif"
         onChange={(event) =>
           modifier.mutate({
             id: mesureId,
@@ -581,7 +741,7 @@ const SelecteurStatutMesure = ({
           })
         }
         disabled={modifier.isPending}
-        className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 disabled:opacity-50"
+        className={`${CLASSES_BADGE_STATUT} ${STYLES_STATUT_MESURE[statutActuel]} cursor-pointer disabled:opacity-50`}
       >
         {ORDRE_STATUT_MESURE.map((statut) => (
           <option key={statut} value={statut}>
@@ -623,10 +783,25 @@ const PageDetailMesure = () => {
     { enabled: mesureId !== "" },
   );
 
+  const [triActions, setTriActions] = useState<TriActions | null>(null);
+  const basculerTriActions = (colonne: ColonneAction) =>
+    setTriActions((actuel) =>
+      actuel?.colonne === colonne
+        ? { colonne, croissant: !actuel.croissant }
+        : { colonne, croissant: true },
+    );
+  const actionsTriees = useMemo(
+    () =>
+      actions && triActions
+        ? [...actions].sort((a, b) => comparerActions(a, b, triActions))
+        : actions,
+    [actions, triActions],
+  );
+
   if (mesureEnChargement) {
     return (
       <Layout>
-        <p className="text-neutral-500">Chargement…</p>
+        <p className="text-neutral-600">Chargement…</p>
       </Layout>
     );
   }
@@ -634,7 +809,7 @@ const PageDetailMesure = () => {
   if (!mesure) {
     return (
       <Layout>
-        <p className="text-neutral-500">
+        <p className="text-neutral-600">
           Objectif introuvable, ou vous n'avez pas les droits pour le consulter.
         </p>
       </Layout>
@@ -653,43 +828,67 @@ const PageDetailMesure = () => {
         <title>{mesure.titre} - PILOTE Nouvelle-Calédonie</title>
       </Head>
 
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-      >
-        ← Retour au tableau de bord
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+        >
+          ← Retour au tableau de bord
+        </Link>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-2 rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
+        >
+          <span aria-hidden="true">🖨</span>
+          Imprimer
+        </button>
+      </div>
+      <p className="hidden text-xs text-neutral-600 print:block">
+        PILOTE Nouvelle-Calédonie — fiche imprimée le{" "}
+        {new Date().toLocaleDateString("fr-FR")}
+      </p>
 
       <p className="mt-2 text-xs font-medium uppercase tracking-wide text-secondary">
         {LIBELLES_MESURE_PRIORITAIRE[mesure.mesurePrioritaire]}
       </p>
-      <p className="text-xs text-neutral-500">{mesure.code}</p>
-      <h1 className="text-2xl font-semibold text-neutral-800">
-        {mesure.titre}
-      </h1>
-      {estAdmin || estPresident ? (
-        <SelecteurStatutMesure mesureId={mesure.id} statutActuel={mesure.statut} />
-      ) : (
-        <p className="mt-1 text-sm text-neutral-600">
-          {LIBELLES_STATUT_MESURE[mesure.statut]}
-        </p>
-      )}
+      <p className="text-xs text-neutral-600">{mesure.code}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold text-neutral-800">
+          {mesure.titre}
+        </h1>
+        {estAdmin || estPresident ? (
+          <SelecteurStatutMesure mesureId={mesure.id} statutActuel={mesure.statut} />
+        ) : (
+          <BadgeStatutMesure statut={mesure.statut} />
+        )}
+      </div>
 
-      <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-5">
-        <h2 className="font-medium text-neutral-800">Météo de l'objectif</h2>
-        <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div className="flex flex-col items-center gap-2">
-            <Jauge valeur={mesure.meteoAvancement} taille={128} />
-            <p className="text-center text-xs text-neutral-500">
-              Moyenne automatique du taux d'avancement des actions liées.
+      <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-5 print:break-inside-avoid">
+        <div className="flex items-center gap-2">
+          <h2 className="font-medium text-neutral-800">Progression globale</h2>
+          <InfoBulle libelle="Comment sont calculées ces moyennes ?">
+            <p>
+              <strong>Actions :</strong> moyenne automatique du taux d'avancement
+              des actions liées.
             </p>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <Jauge valeur={mesure.tauxAvancementIndicateurs} taille={128} />
-            <p className="text-center text-xs text-neutral-500">
-              Moyenne automatique du taux de réalisation des indicateurs clés.
+            <p className="mt-2">
+              <strong>Indicateurs clés :</strong> moyenne automatique du taux de
+              réalisation des indicateurs clés.
             </p>
-          </div>
+          </InfoBulle>
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <CarteKpi
+            libelle="Avancement des actions"
+            detail={`${mesure.nombreActions} action${mesure.nombreActions > 1 ? "s" : ""}`}
+            valeur={mesure.meteoAvancement}
+          />
+          <CarteKpi
+            libelle="Réalisation des indicateurs clés"
+            detail={`${mesure.nombreIndicateurs} indicateur${mesure.nombreIndicateurs > 1 ? "s" : ""}`}
+            valeur={mesure.tauxAvancementIndicateurs}
+          />
         </div>
       </section>
 
@@ -700,33 +899,37 @@ const PageDetailMesure = () => {
             <button
               type="button"
               onClick={() => setModaleCreationActionOuverte(true)}
-              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
+              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover print:hidden"
             >
               Ajouter une action
             </button>
           ) : null}
         </div>
-        <table className="mt-3 w-full border-collapse text-sm">
-          <thead className="text-left text-neutral-600">
-            <tr>
-              <th className="px-4 py-2">Titre</th>
-              <th className="px-4 py-2">Type</th>
-              <th className="px-4 py-2">Début prévisionnel</th>
-              <th className="px-4 py-2">Fin prévisionnelle</th>
-              <th className="px-4 py-2">Avancement</th>
-              <th className="px-4 py-2">Bloquée</th>
-            </tr>
-          </thead>
-          <tbody>
-            {actions?.map((action) => (
-              <LigneAction
-                key={action.id}
-                action={action}
-                peutSaisir={estDirectionNc}
-              />
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-3 overflow-x-auto print:overflow-visible">
+          <table className="w-full border-collapse text-sm">
+            <thead className="text-left text-neutral-600">
+              <tr>
+                {COLONNES_ACTIONS.map((colonne) => (
+                  <EnTeteTrie
+                    key={colonne.cle}
+                    colonne={colonne}
+                    tri={triActions}
+                    onClick={basculerTriActions}
+                  />
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {actionsTriees?.map((action) => (
+                <LigneAction
+                  key={action.id}
+                  action={action}
+                  peutSaisir={estDirectionNc}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
         {estAdmin || estDirectionNc ? (
           <Modal
             open={modaleCreationActionOuverte}
@@ -746,7 +949,7 @@ const PageDetailMesure = () => {
           <h2 className="font-medium text-neutral-800">
             Indicateurs clés
           </h2>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 print:hidden">
             <div className="inline-flex rounded-lg border border-neutral-200 bg-neutral-50 p-1">
               {(
                 [
@@ -789,7 +992,7 @@ const PageDetailMesure = () => {
                 <th className="px-4 py-2">Valeur actuelle</th>
                 <th className="px-4 py-2">Cible</th>
                 <th className="px-4 py-2">Taux de réalisation</th>
-                <th className="px-4 py-2">Actions</th>
+                <th className="px-4 py-2 print:hidden">Actions</th>
               </tr>
             </thead>
             <tbody>
