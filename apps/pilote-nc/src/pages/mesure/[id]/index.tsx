@@ -676,14 +676,28 @@ const PageDetailMesure = () => {
 
       <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-5">
         <h2 className="font-medium text-neutral-800">Météo de l'objectif</h2>
-        <p className="mt-2 text-3xl font-semibold text-primary">
-          {mesure.meteoAvancement === null
-            ? "—"
-            : `${Math.round(mesure.meteoAvancement)}%`}
-        </p>
-        <p className="mt-1 text-xs text-neutral-500">
-          Moyenne automatique du taux d'avancement des actions liées.
-        </p>
+        <div className="mt-2 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <p className="text-3xl font-semibold text-primary">
+              {mesure.meteoAvancement === null
+                ? "—"
+                : `${Math.round(mesure.meteoAvancement)}%`}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              Moyenne automatique du taux d'avancement des actions liées.
+            </p>
+          </div>
+          <div>
+            <p className="text-3xl font-semibold text-primary">
+              {mesure.tauxAvancementIndicateurs === null
+                ? "—"
+                : `${Math.round(mesure.tauxAvancementIndicateurs)}%`}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              Moyenne automatique du taux de réalisation des indicateurs clés.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-5">
@@ -737,7 +751,7 @@ const PageDetailMesure = () => {
       <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-medium text-neutral-800">
-            Indicateurs d'impact
+            Indicateurs clés
           </h2>
           <div className="flex items-center gap-3">
             <div className="inline-flex rounded-lg border border-neutral-200 bg-neutral-50 p-1">
