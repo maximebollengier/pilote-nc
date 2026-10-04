@@ -485,7 +485,7 @@ const PageMesures = () => {
   // par défaut — cf. DROITS_PAR_DEFAUT.MESURE_SUPPRIMER, modifiable ensuite
   // depuis Admin > Droits.
   const peutSupprimer = utilisateur?.profil === "ADMIN_OUTIL";
-  const [vue, setVue] = useState<Vue>("tableau");
+  const [vue, setVue] = useState<Vue>("kanban-phase");
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
   const [filtreAccordGouvernance, setFiltreAccordGouvernance] =
     useState<FiltreAccordGouvernance>("tous");
