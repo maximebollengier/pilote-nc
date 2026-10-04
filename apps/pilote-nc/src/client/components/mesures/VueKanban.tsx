@@ -34,7 +34,7 @@ export const VueKanban = ({ mesures }: { mesures: MesureAffichage[] }) => {
                 <MesureCarteKanban key={mesure.id} mesure={mesure} />
               ))}
               {mesuresDuGroupe.length === 0 ? (
-                <p className="px-1 text-xs text-neutral-400">Aucune mesure</p>
+                <p className="px-1 text-xs text-neutral-400">Aucun objectif</p>
               ) : null}
             </div>
           </div>

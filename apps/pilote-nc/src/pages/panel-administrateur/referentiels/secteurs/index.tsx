@@ -138,7 +138,7 @@ const LigneSecteur = ({ secteur }: { secteur: Secteur }) => {
         <ConfirmModal
           open={confirmationSuppressionOuverte}
           titre="Supprimer ce secteur ?"
-          message={`Le secteur "${secteur.nom}" sera supprimé. Impossible tant qu'une mesure y est encore rattachée.`}
+          message={`Le secteur "${secteur.nom}" sera supprimé. Impossible tant qu'un objectif y est encore rattaché.`}
           libelleConfirmation="Supprimer"
           enCours={supprimer.isPending}
           erreur={supprimer.error?.message ?? null}

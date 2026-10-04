@@ -68,7 +68,7 @@ export default class PrismaJournalRepository implements JournalRepository {
     const entrees: EntreeJournal[] = [];
 
     for (const mesure of mesures) {
-      const cible = `la mesure ${mesure.code} — ${mesure.titre}`;
+      const cible = `l'objectif ${mesure.code} — ${mesure.titre}`;
       entrees.push(
         this.entréeCréation(mesure, mesure.auteurCreation, cible),
       );

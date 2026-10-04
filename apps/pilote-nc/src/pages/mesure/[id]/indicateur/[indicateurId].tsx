@@ -54,7 +54,7 @@ const PageDetailIndicateur = () => {
         href={`/mesure/${mesureId}`}
         className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
       >
-        ← Retour à la mesure
+        ← Retour à l'objectif
       </Link>
 
       {mesure ? (

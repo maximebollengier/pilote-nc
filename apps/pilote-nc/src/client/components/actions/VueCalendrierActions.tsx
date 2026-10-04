@@ -22,7 +22,7 @@ type Colonne = "titre" | "mesureTitre";
 
 const COLONNES: { cle: Colonne; libelle: string; largeur: number }[] = [
   { cle: "titre", libelle: "Action", largeur: 200 },
-  { cle: "mesureTitre", libelle: "Mesure", largeur: 200 },
+  { cle: "mesureTitre", libelle: "Objectif", largeur: 200 },
 ];
 
 const LIBELLES_MOIS = [

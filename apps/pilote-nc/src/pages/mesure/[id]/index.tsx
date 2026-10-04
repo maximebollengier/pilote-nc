@@ -303,9 +303,7 @@ const LigneAction = ({
   const modifierDates = trpc.actions.modifierDatesPrevisionnelles.useMutation({
     onSuccess: invalider,
   });
-  // Un seul mode d'édition à la fois : les dates (« Modifier ») ou
-  // l'avancement (« Mettre à jour »).
-  const [mode, setMode] = useState<"dates" | "avancement" | null>(null);
+  const [enEdition, setEnEdition] = useState(false);
   const [valeur, setValeur] = useState(String(action.tauxAvancement));
   const [datePrevisionnelleDebut, setDatePrevisionnelleDebut] = useState(
     versValeurInput(action.datePrevisionnelleDebut),
@@ -315,7 +313,7 @@ const LigneAction = ({
   );
 
   const annuler = () => {
-    setMode(null);
+    setEnEdition(false);
     setValeur(String(action.tauxAvancement));
     setDatePrevisionnelleDebut(versValeurInput(action.datePrevisionnelleDebut));
     setDatePrevisionnelleFin(versValeurInput(action.datePrevisionnelleFin));
@@ -323,21 +321,27 @@ const LigneAction = ({
     modifierDates.reset();
   };
 
-  const enregistrer = () => {
-    if (mode === "dates") {
-      modifierDates.mutate(
-        {
+  // Les deux champs se mettent à jour d'un seul clic ; on n'appelle que les
+  // mutations dont la valeur a réellement changé.
+  const enregistrer = async () => {
+    const datesModifiees =
+      datePrevisionnelleDebut !== versValeurInput(action.datePrevisionnelleDebut) ||
+      datePrevisionnelleFin !== versValeurInput(action.datePrevisionnelleFin);
+    const avancementModifie = Number(valeur) !== action.tauxAvancement;
+    try {
+      if (datesModifiees) {
+        await modifierDates.mutateAsync({
           id: action.id,
           datePrevisionnelleDebut: datePrevisionnelleDebut || null,
           datePrevisionnelleFin: datePrevisionnelleFin || null,
-        },
-        { onSuccess: () => setMode(null) },
-      );
-    } else if (mode === "avancement") {
-      saisir.mutate(
-        { id: action.id, tauxAvancement: Number(valeur) },
-        { onSuccess: () => setMode(null) },
-      );
+        });
+      }
+      if (avancementModifie) {
+        await saisir.mutateAsync({ id: action.id, tauxAvancement: Number(valeur) });
+      }
+      setEnEdition(false);
+    } catch {
+      // L'erreur est affichée dans la ligne via `.error` de chaque mutation.
     }
   };
 
@@ -349,7 +353,7 @@ const LigneAction = ({
     <tr className="border-t border-neutral-100">
       <td className="px-3 py-2">{action.titre}</td>
       <td className="px-3 py-2">{LIBELLES_TYPE_ACTION[action.type]}</td>
-      {mode === "dates" ? (
+      {enEdition ? (
         <>
           <td className="px-3 py-2">
             <input
@@ -357,7 +361,7 @@ const LigneAction = ({
               value={datePrevisionnelleDebut}
               onChange={(event) => setDatePrevisionnelleDebut(event.target.value)}
               aria-label={`Début prévisionnel de l'action « ${action.titre} »`}
-              className="rounded border border-neutral-300 px-2 py-1"
+              className="w-36 rounded border border-neutral-300 px-2 py-1"
             />
           </td>
           <td className="px-3 py-2">
@@ -384,7 +388,7 @@ const LigneAction = ({
         </>
       )}
       <td className="px-3 py-2">
-        {mode === "avancement" ? (
+        {enEdition ? (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <input
@@ -429,24 +433,7 @@ const LigneAction = ({
       {peutSaisir ? (
         <td className="px-3 py-2 print:hidden">
           <div className="flex flex-col items-stretch gap-1">
-            {mode === null ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setMode("dates")}
-                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-                >
-                  Modifier
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("avancement")}
-                  className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-                >
-                  Mettre à jour
-                </button>
-              </>
-            ) : (
+            {enEdition ? (
               <>
                 <button
                   type="button"
@@ -465,6 +452,14 @@ const LigneAction = ({
                   Annuler
                 </button>
               </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEnEdition(true)}
+                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
+              >
+                Mettre à jour
+              </button>
             )}
           </div>
         </td>
@@ -719,7 +714,7 @@ const LigneIndicateur = ({
             href={`/mesure/${mesureId}/indicateur/${indicateur.id}`}
             className="rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-100"
           >
-            Voir détails
+            Mettre à jour
           </Link>
           {peutGerer ? (
             <>
@@ -728,7 +723,7 @@ const LigneIndicateur = ({
                 onClick={() => setModaleModificationOuverte(true)}
                 className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
               >
-                Mettre à jour
+                Modifier
               </button>
               <Modal
                 open={modaleModificationOuverte}

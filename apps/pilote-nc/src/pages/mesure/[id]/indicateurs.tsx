@@ -46,7 +46,7 @@ const PageIndicateursMesure = () => {
         href={`/mesure/${mesureId}`}
         className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
       >
-        ← Retour à la mesure
+        ← Retour à l'objectif
       </Link>
 
       <h1 className="mt-2 text-2xl font-semibold text-neutral-800">
@@ -89,7 +89,7 @@ const PageIndicateursMesure = () => {
         ))}
         {indicateurs && indicateurs.length === 0 ? (
           <p className="text-neutral-500">
-            Aucun indicateur d'impact défini pour cette mesure.
+            Aucun indicateur d'impact défini pour cet objectif.
           </p>
         ) : null}
       </div>

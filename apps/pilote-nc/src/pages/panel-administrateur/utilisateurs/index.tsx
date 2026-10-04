@@ -408,7 +408,7 @@ const PageUtilisateurs = () => {
       </div>
       <p className="mt-1 text-sm text-neutral-500">
         Un utilisateur peut être rattaché à 0, 1 ou plusieurs secteurs. Ce
-        rattachement détermine les mesures qu'il peut consulter ou faire
+        rattachement détermine les objectifs qu'il peut consulter ou faire
         évoluer (Direction NC) ou consulter (Membre du gouvernement sans
         transparence globale).
       </p>

@@ -59,7 +59,7 @@ const PageDroits = () => {
       <p className="mt-1 text-sm text-neutral-500">
         Pour Direction NC, les actions marquées{" "}
         <span aria-hidden="true">🔒</span> restent, quel que soit ce réglage,
-        limitées aux mesures des secteurs auxquels cet utilisateur est
+        limitées aux objectifs des secteurs auxquels cet utilisateur est
         habilité.
       </p>
 

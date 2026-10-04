@@ -22,7 +22,7 @@ export const mesuresRouter = créerRouteurTRPC({
       const mesure = await getContainer("mesures")
         .resolve("recupererUneMesureUseCase")
         .run(input.id);
-      if (!mesure) throw new NotFoundError("Mesure introuvable");
+      if (!mesure) throw new NotFoundError("Objectif introuvable");
 
       construireHabilitation(ctx.session).verifierAutorisationLectureMesure(
         mesure,

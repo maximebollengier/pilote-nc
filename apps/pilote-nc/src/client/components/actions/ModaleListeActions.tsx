@@ -35,7 +35,7 @@ export const ModaleListeActions = ({
                 {action.titre}
               </span>
               <span className="block truncate text-sm text-neutral-500">
-                Mesure : {action.mesureTitre ?? "—"}
+                Objectif : {action.mesureTitre ?? "—"}
               </span>
             </span>
             <span className="shrink-0 text-sm text-neutral-600">

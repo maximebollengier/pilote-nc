@@ -116,7 +116,7 @@ export const VueKanbanParPhase = ({
                       ))}
                       {mesuresDuGroupe.length === 0 ? (
                         <p className="px-1 text-xs text-neutral-400">
-                          Aucune mesure
+                          Aucun objectif
                         </p>
                       ) : null}
                     </div>

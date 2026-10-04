@@ -17,11 +17,11 @@ export const ORDRE_ACTION_DROIT: ActionDroit[] = [
 ];
 
 export const LIBELLES_ACTION_DROIT: Record<ActionDroit, string> = {
-  MESURE_CREER: "Créer une mesure",
-  MESURE_MODIFIER: "Modifier une mesure",
-  MESURE_MODIFIER_STATUT: "Modifier le statut d'une mesure",
-  MESURE_MODIFIER_PHASE: "Modifier la phase d'une mesure",
-  MESURE_SUPPRIMER: "Supprimer une mesure (et ses actions/indicateurs)",
+  MESURE_CREER: "Créer un objectif",
+  MESURE_MODIFIER: "Modifier un objectif",
+  MESURE_MODIFIER_STATUT: "Modifier le statut d'un objectif",
+  MESURE_MODIFIER_PHASE: "Modifier la phase d'un objectif",
+  MESURE_SUPPRIMER: "Supprimer un objectif (et ses actions/indicateurs)",
   ACTION_CREER: "Créer une action",
   ACTION_MODIFIER: "Modifier une action (avancement, dates, blocage)",
   ACTION_SUPPRIMER: "Supprimer une action",

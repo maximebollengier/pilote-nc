@@ -277,12 +277,12 @@ const PageAccueil = () => {
       {mesuresAffichees && mesuresAffichees.length === 0 ? (
         <p className="mt-6 text-neutral-500">
           {filtreActions === "bloquees"
-            ? "Aucune mesure avec une action bloquée pour le moment."
+            ? "Aucun objectif avec une action bloquée pour le moment."
             : filtreAccordGouvernance !== "tous"
-              ? "Aucune mesure pour ce filtre d'accord de gouvernance."
+              ? "Aucun objectif pour ce filtre d'accord de gouvernance."
               : secteurId
-                ? "Aucune mesure pour ce secteur."
-                : "Aucune mesure visible pour votre profil pour le moment."}
+                ? "Aucun objectif pour ce secteur."
+                : "Aucun objectif visible pour votre profil pour le moment."}
         </p>
       ) : null}
 
