@@ -16,6 +16,7 @@ import { LIBELLES_TYPE_ACTION, TypeAction } from "@/server/actions/domain/TypeAc
 import { GraphiqueEvolutionIndicateurs } from "@/client/components/mesures/GraphiqueEvolutionIndicateurs";
 import { BadgeBloquee } from "@/client/components/BadgeBloquee";
 import { Modal } from "@/client/components/Modal";
+import { Jauge } from "@/client/components/Jauge";
 import { ConfirmModal } from "@/client/components/ConfirmModal";
 import { SensEvolution } from "@/server/indicateurs-impact/domain/SensEvolution";
 
@@ -515,7 +516,7 @@ const LigneIndicateur = ({
               </button>
               <Modal
                 open={modaleModificationOuverte}
-                titre="Modifier l'indicateur d'impact"
+                titre="Modifier l'indicateur clé"
                 onFermer={() => setModaleModificationOuverte(false)}
               >
                 <FormulaireModifierIndicateur
@@ -676,24 +677,16 @@ const PageDetailMesure = () => {
 
       <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-5">
         <h2 className="font-medium text-neutral-800">Météo de l'objectif</h2>
-        <div className="mt-2 grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <p className="text-3xl font-semibold text-primary">
-              {mesure.meteoAvancement === null
-                ? "—"
-                : `${Math.round(mesure.meteoAvancement)}%`}
-            </p>
-            <p className="mt-1 text-xs text-neutral-500">
+        <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="flex flex-col items-center gap-2">
+            <Jauge valeur={mesure.meteoAvancement} taille={128} />
+            <p className="text-center text-xs text-neutral-500">
               Moyenne automatique du taux d'avancement des actions liées.
             </p>
           </div>
-          <div>
-            <p className="text-3xl font-semibold text-primary">
-              {mesure.tauxAvancementIndicateurs === null
-                ? "—"
-                : `${Math.round(mesure.tauxAvancementIndicateurs)}%`}
-            </p>
-            <p className="mt-1 text-xs text-neutral-500">
+          <div className="flex flex-col items-center gap-2">
+            <Jauge valeur={mesure.tauxAvancementIndicateurs} taille={128} />
+            <p className="text-center text-xs text-neutral-500">
               Moyenne automatique du taux de réalisation des indicateurs clés.
             </p>
           </div>
@@ -821,7 +814,7 @@ const PageDetailMesure = () => {
         {estAdmin ? (
           <Modal
             open={modaleCreationIndicateurOuverte}
-            titre="Ajouter un indicateur d'impact"
+            titre="Ajouter un indicateur clé"
             onFermer={() => setModaleCreationIndicateurOuverte(false)}
           >
             <FormulaireNouvelIndicateur
